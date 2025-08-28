@@ -16,90 +16,159 @@ export default requireAuth(async function handler(req, res) {
   }
 
   try {
-    const { question } = req.body
+    const { question, organization_id, search_scope = 'all' } = req.body
     const userId = req.user.userId // Get authenticated user ID
 
     console.log('Question from user:', userId, ':', question)
+    console.log('Search context:', { organization_id, search_scope })
 
-    // Security check: Verify user has documents before processing
-    const { data: userDocuments, error: docCheckError } = await supabase
+    // Validate organization access if organization_id provided
+    if (organization_id) {
+      const { data: membership, error: membershipError } = await supabase
+        .from('organization_memberships')
+        .select('role')
+        .eq('organization_id', organization_id)
+        .eq('user_id', userId)
+        .single()
+
+      if (membershipError || !membership) {
+        return res.status(403).json({ 
+          error: 'Access denied to this organization or organization not found' 
+        })
+      }
+
+      console.log(`User ${userId} has ${membership.role} role in organization ${organization_id}`)
+    }
+
+    // Get user's document context for security verification
+    const userDocumentsQuery = supabase
       .from('documents')
-      .select('id, filename')
+      .select('id, filename, organization_id, visibility, is_organization_document')
       .eq('user_id', userId)
+
+    // If searching within specific organization, add filter
+    if (organization_id && search_scope === 'organization') {
+      userDocumentsQuery.eq('organization_id', organization_id)
+    }
+
+    const { data: userDocuments, error: docCheckError } = await userDocumentsQuery
 
     if (docCheckError) {
       console.error('Error checking user documents:', docCheckError)
       return res.status(500).json({ error: 'Database error' })
     }
 
-    if (!userDocuments || userDocuments.length === 0) {
+    // Get organization documents user has access to (if applicable)
+    let organizationDocuments = []
+    if (search_scope === 'all' || search_scope === 'organization') {
+      const userOrganizations = await getUserOrganizations(userId)
+      
+      if (userOrganizations.length > 0) {
+        const orgIds = userOrganizations.map(org => org.organization_id)
+        
+        const { data: orgDocs, error: orgDocsError } = await supabase
+          .from('documents')
+          .select('id, filename, organization_id, visibility, user_id')
+          .in('organization_id', orgIds)
+          .eq('visibility', 'organization')
+          .neq('user_id', userId) // Exclude user's own docs (already in userDocuments)
+
+        if (!orgDocsError && orgDocs) {
+          organizationDocuments = orgDocs
+        }
+      }
+    }
+
+    const totalPersonalDocs = userDocuments?.length || 0
+    const totalOrgDocs = organizationDocuments.length
+    const totalAccessibleDocs = totalPersonalDocs + totalOrgDocs
+
+    console.log(`User ${userId} has access to:`)
+    console.log(`- Personal documents: ${totalPersonalDocs}`)
+    console.log(`- Organization documents: ${totalOrgDocs}`)
+    console.log(`- Total accessible: ${totalAccessibleDocs}`)
+
+    if (totalAccessibleDocs === 0) {
       return res.json({
-        answer: "You haven't uploaded any documents yet. Please upload a document first to ask questions about it.",
+        answer: "You don't have access to any documents yet. Please upload a document first or join an organization to ask questions.",
         sources: [],
-        user_documents: 0
+        user_documents: totalPersonalDocs,
+        organization_documents: totalOrgDocs,
+        search_context: {
+          scope: search_scope,
+          organization_id: organization_id
+        }
       })
     }
 
-    console.log(`User ${userId} has ${userDocuments.length} documents`)
-
-    // 1. Generate embedding for the question
+    // Generate embedding for the question
     const queryEmbedding = await generateEmbedding(question)
     console.log('Generated query embedding')
 
-    // 2. Search for similar chunks WITH STRICT USER ISOLATION
-    const { data: similarChunks, error: searchError } = await supabase.rpc(
-      'match_documents',
-      {
-        query_embedding: queryEmbedding,
-        match_count: 8,
-        user_id: userId // Critical: only search user's documents
-      }
+    // Enhanced search with organization support
+    const searchResults = await performEnhancedSearch(
+      queryEmbedding, 
+      userId, 
+      organization_id, 
+      search_scope
     )
 
-    if (searchError) {
-      console.error('Search error:', searchError)
-      return res.status(500).json({ error: 'Search failed' })
-    }
+    console.log(`Found ${searchResults?.length || 0} similar chunks for user ${userId}`)
 
-    console.log(`Found ${similarChunks?.length || 0} similar chunks for user ${userId}`)
-
-    if (!similarChunks || similarChunks.length === 0) {
+    if (!searchResults || searchResults.length === 0) {
       return res.json({
-        answer: "I couldn't find any relevant information in your documents to answer this question.",
+        answer: "I couldn't find any relevant information in your accessible documents to answer this question.",
         sources: [],
-        searched_documents: userDocuments.length
+        searched_documents: totalAccessibleDocs,
+        search_context: {
+          scope: search_scope,
+          organization_id: organization_id,
+          personal_docs: totalPersonalDocs,
+          org_docs: totalOrgDocs
+        }
       })
     }
 
-    // Double-check security: Verify all returned chunks belong to the user
-    const chunkUserIds = new Set(similarChunks.map(chunk => chunk.user_id).filter(Boolean))
-    if (chunkUserIds.size > 1 || (chunkUserIds.size === 1 && !chunkUserIds.has(userId))) {
-      console.error('SECURITY VIOLATION: Chunks from other users returned!', {
-        requestUserId: userId,
-        chunkUserIds: Array.from(chunkUserIds)
-      })
-      return res.status(500).json({ error: 'Security error: data isolation failure' })
+    // Security verification: ensure all chunks are accessible to user
+    const securityCheck = await verifyChunkAccess(searchResults, userId)
+    if (!securityCheck.isValid) {
+      console.error('SECURITY VIOLATION:', securityCheck.error)
+      return res.status(500).json({ error: 'Security error: unauthorized document access detected' })
     }
 
-    // 3. Smart context assembly
-    const contextWithScores = assembleSmartContext(similarChunks, question)
+    // Smart context assembly with organization awareness
+    const contextWithScores = assembleSmartContext(searchResults, question)
     
     console.log('Context length:', contextWithScores.context.length)
+    console.log('Source breakdown:', contextWithScores.sourceBreakdown)
 
-    // 4. Generate answer
-    const answer = await generateEnhancedAnswer(contextWithScores.context, question, contextWithScores.keyInfo)
+    // Generate enhanced answer
+    const answer = await generateEnhancedAnswer(
+      contextWithScores.context, 
+      question, 
+      contextWithScores.keyInfo
+    )
 
-    // 5. Prepare response with user-specific information
+    // Prepare comprehensive response
     const response = {
       answer: answer,
-      sources: similarChunks.slice(0, 5).map(chunk => ({
+      sources: searchResults.slice(0, 5).map(chunk => ({
         text: chunk.chunk_text.substring(0, 150) + '...',
-        similarity: parseFloat(chunk.similarity.toFixed(3))
+        similarity: parseFloat(chunk.similarity.toFixed(3)),
+        source_type: chunk.source_type || 'unknown',
+        organization_id: chunk.organization_id || null
       })),
-      found_chunks: similarChunks.length,
+      found_chunks: searchResults.length,
       context_quality_score: contextWithScores.qualityScore,
-      user_documents: userDocuments.length,
-      searched_user: userId // For verification purposes
+      source_breakdown: contextWithScores.sourceBreakdown,
+      search_context: {
+        scope: search_scope,
+        organization_id: organization_id,
+        user_documents: totalPersonalDocs,
+        organization_documents: totalOrgDocs,
+        total_accessible: totalAccessibleDocs
+      },
+      searched_user: userId
     }
 
     res.json(response)
@@ -110,17 +179,130 @@ export default requireAuth(async function handler(req, res) {
   }
 })
 
-// Your existing helper functions remain the same but with additional security logging
+// Get user's organization memberships
+async function getUserOrganizations(userId) {
+  try {
+    const { data: memberships, error } = await supabase
+      .from('organization_memberships')
+      .select('organization_id, role')
+      .eq('user_id', userId)
 
+    if (error) {
+      console.error('Error fetching user organizations:', error)
+      return []
+    }
+
+    return memberships || []
+  } catch (error) {
+    console.error('Error in getUserOrganizations:', error)
+    return []
+  }
+}
+
+// Perform enhanced search with organization support
+async function performEnhancedSearch(queryEmbedding, userId, organizationId, searchScope) {
+  try {
+    // Call the enhanced match_documents function
+    const { data: similarChunks, error: searchError } = await supabase.rpc(
+      'match_documents',
+      {
+        query_embedding: queryEmbedding,
+        match_count: 10,
+        user_id: userId,
+        organization_id: organizationId // Can be null
+      }
+    )
+
+    if (searchError) {
+      console.error('Search error:', searchError)
+      throw new Error('Search failed: ' + searchError.message)
+    }
+
+    return similarChunks || []
+  } catch (error) {
+    console.error('Enhanced search error:', error)
+    throw error
+  }
+}
+
+// Verify that all chunks are accessible to the user
+async function verifyChunkAccess(chunks, userId) {
+  try {
+    const chunkUserIds = new Set()
+    const chunkOrgIds = new Set()
+
+    chunks.forEach(chunk => {
+      if (chunk.user_id) chunkUserIds.add(chunk.user_id)
+      if (chunk.organization_id) chunkOrgIds.add(chunk.organization_id)
+    })
+
+    // Check personal documents (user's own)
+    const personalChunks = chunks.filter(chunk => chunk.user_id === userId)
+    
+    // Check organization chunks
+    const orgChunks = chunks.filter(chunk => chunk.organization_id && chunk.source_type === 'organization')
+    
+    if (orgChunks.length > 0) {
+      const orgIds = Array.from(chunkOrgIds).filter(id => id)
+      
+      if (orgIds.length > 0) {
+        // Verify user has access to these organizations
+        const { data: userMemberships, error } = await supabase
+          .from('organization_memberships')
+          .select('organization_id')
+          .eq('user_id', userId)
+          .in('organization_id', orgIds)
+
+        if (error) {
+          return { isValid: false, error: 'Failed to verify organization access' }
+        }
+
+        const accessibleOrgIds = new Set(userMemberships?.map(m => m.organization_id) || [])
+        
+        // Check if user has access to all organization chunks
+        const unauthorizedOrgChunks = orgChunks.filter(chunk => 
+          chunk.organization_id && !accessibleOrgIds.has(chunk.organization_id)
+        )
+
+        if (unauthorizedOrgChunks.length > 0) {
+          return { 
+            isValid: false, 
+            error: `Unauthorized organization chunk access detected: ${unauthorizedOrgChunks.length} chunks` 
+          }
+        }
+      }
+    }
+
+    return { isValid: true }
+  } catch (error) {
+    console.error('Security verification error:', error)
+    return { isValid: false, error: 'Security verification failed' }
+  }
+}
+
+// Enhanced context assembly with organization awareness
 function assembleSmartContext(chunks, question) {
   const lowerQuestion = question.toLowerCase()
   
   const questionType = identifyQuestionType(lowerQuestion)
   const keyTerms = extractKeyTerms(lowerQuestion)
   
+  // Track source breakdown
+  const sourceBreakdown = {
+    personal: 0,
+    organization: 0
+  }
+
   const scoredChunks = chunks.map(chunk => {
     const lowerText = chunk.chunk_text.toLowerCase()
     let relevanceScore = chunk.similarity || 0
+    
+    // Track source types
+    if (chunk.source_type === 'personal') {
+      sourceBreakdown.personal++
+    } else if (chunk.source_type === 'organization') {
+      sourceBreakdown.organization++
+    }
     
     keyTerms.forEach(term => {
       const matches = (lowerText.match(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length
@@ -153,13 +335,16 @@ function assembleSmartContext(chunks, question) {
     .slice(0, 6)
   
   const context = bestChunks
-    .map((chunk, index) => `[Source ${index + 1}]: ${chunk.chunk_text}`)
+    .map((chunk, index) => {
+      const sourceLabel = chunk.source_type === 'organization' ? '[Org Source]' : '[Personal]'
+      return `[Source ${index + 1}] ${sourceLabel}: ${chunk.chunk_text}`
+    })
     .join('\n\n')
   
   const keyInfo = extractKeyInformationSnippets(bestChunks, keyTerms, questionType)
   const qualityScore = Math.min(bestChunks[0]?.relevanceScore || 0, 1.0)
   
-  return { context, keyInfo, qualityScore }
+  return { context, keyInfo, qualityScore, sourceBreakdown }
 }
 
 function identifyQuestionType(question) {

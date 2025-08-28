@@ -1,0 +1,401 @@
+-- Phase 1.1: Create new tables for organization support
+
+-- Run this in Supabase SQL Editor
+
+-- Organizations table
+
+CREATE TABLE organizations (
+
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  name text NOT NULL,
+
+  description text,
+
+  created_by_user_id text NOT NULL,
+
+  created_at timestamp DEFAULT now(),
+
+  updated_at timestamp DEFAULT now()
+
+);
+
+-- Organization memberships table
+
+CREATE TABLE organization_memberships (
+
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  organization_id uuid REFERENCES organizations(id) ON DELETE CASCADE,
+
+  user_id text NOT NULL,
+
+  role text DEFAULT 'member' CHECK (role IN ('owner', 'admin', 'member')),
+
+  joined_at timestamp DEFAULT now(),
+
+  UNIQUE(organization_id, user_id)
+
+);
+
+-- Enable RLS on new tables
+
+ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE organization_memberships ENABLE ROW LEVEL SECURITY;
+
+-- Basic RLS policies for new tables
+
+CREATE POLICY "Users can view organizations they belong to" ON organizations
+
+FOR SELECT USING (
+
+  id IN (
+
+    SELECT organization_id 
+
+    FROM organization_memberships 
+
+    WHERE user_id = auth.uid()::text
+
+  )
+
+);
+
+CREATE POLICY "Only organization creators can update organizations" ON organizations
+
+FOR UPDATE USING (created_by_user_id = auth.uid()::text);
+
+CREATE POLICY "Users can view their own memberships" ON organization_memberships
+
+FOR SELECT USING (user_id = auth.uid()::text);
+
+CREATE POLICY "Organization owners can manage memberships" ON organization_memberships
+
+FOR ALL USING (
+
+  organization_id IN (
+
+    SELECT id FROM organizations 
+
+    WHERE created_by_user_id = auth.uid()::text
+
+  )
+
+);
+
+-- Add indexes for better performance
+
+CREATE INDEX idx_org_memberships_user ON organization_memberships(user_id);
+
+CREATE INDEX idx_org_memberships_org ON organization_memberships(organization_id);
+
+COMMENT ON TABLE organizations IS 'Organizations that can contain multiple users and shared documents';
+
+COMMENT ON TABLE organization_memberships IS 'User memberships in organizations with roles';
+
+-- Phase 1.2: Add organization support to existing tables
+
+-- Run this in Supabase SQL Editor
+
+-- Add organization columns to documents table
+
+ALTER TABLE documents 
+
+ADD COLUMN organization_id uuid REFERENCES organizations(id) ON DELETE SET NULL,
+
+ADD COLUMN visibility text DEFAULT 'private' CHECK (visibility IN ('private', 'organization')),
+
+ADD COLUMN is_organization_document boolean DEFAULT false;
+
+-- Add organization column to document_chunks table
+
+ALTER TABLE document_chunks 
+
+ADD COLUMN organization_id uuid REFERENCES organizations(id) ON DELETE SET NULL;
+
+-- Add indexes for better performance
+
+CREATE INDEX idx_documents_org ON documents(organization_id) WHERE organization_id IS NOT NULL;
+
+CREATE INDEX idx_documents_visibility ON documents(visibility) WHERE visibility = 'organization';
+
+CREATE INDEX idx_chunks_org ON document_chunks(organization_id) WHERE organization_id IS NOT NULL;
+
+-- Add comments for clarity
+
+COMMENT ON COLUMN documents.organization_id IS 'NULL for personal documents, org ID for organization documents';
+
+COMMENT ON COLUMN documents.visibility IS 'private = only owner, organization = visible to org members';
+
+COMMENT ON COLUMN documents.is_organization_document IS 'Helper field to quickly identify org vs personal docs';
+
+COMMENT ON COLUMN document_chunks.organization_id IS 'Should match parent document organization_id';
+
+-- Verify the changes (this will show you the updated table structure)
+
+SELECT 
+
+    column_name, 
+
+    data_type, 
+
+    is_nullable, 
+
+    column_default
+
+FROM information_schema.columns 
+
+WHERE table_name = 'documents' 
+
+ORDER BY ordinal_position;
+
+-- Phase 1.3: Update RLS policies for multi-tenant support
+
+-- Run this in Supabase SQL Editor
+
+-- Drop existing policies
+
+DROP POLICY IF EXISTS "Users can only access their own documents" ON documents;
+
+DROP POLICY IF EXISTS "Users can only access/query their own chunks" ON document_chunks;
+
+-- New comprehensive document policy
+
+CREATE POLICY "Access own and organization documents" ON documents
+
+FOR ALL USING (
+
+  -- Own documents (single user mode - existing flow)
+
+  auth.uid()::text = user_id 
+
+  OR 
+
+  -- Organization documents where user is member and document is public
+
+  (
+
+    organization_id IS NOT NULL
+
+    AND visibility = 'organization' 
+
+    AND organization_id IN (
+
+      SELECT om.organization_id 
+
+      FROM organization_memberships om 
+
+      WHERE om.user_id = auth.uid()::text
+
+    )
+
+  )
+
+);
+
+-- New comprehensive document chunks policy
+
+CREATE POLICY "Access own and organization chunks" ON document_chunks
+
+FOR ALL USING (
+
+  -- Own chunks (single user mode - existing flow)
+
+  auth.uid()::text = user_id 
+
+  OR 
+
+  -- Organization chunks where user is member
+
+  (
+
+    organization_id IS NOT NULL
+
+    AND organization_id IN (
+
+      SELECT om.organization_id 
+
+      FROM organization_memberships om 
+
+      WHERE om.user_id = auth.uid()::text
+
+    )
+
+    -- Additional check: ensure parent document is organization-visible
+
+    AND document_id IN (
+
+      SELECT d.id FROM documents d 
+
+      WHERE d.visibility = 'organization'
+
+    )
+
+  )
+
+);
+
+-- Add policy for creating organizations
+
+CREATE POLICY "Users can create organizations" ON organizations
+
+FOR INSERT WITH CHECK (created_by_user_id = auth.uid()::text);
+
+-- Add policy for adding organization memberships (only owners can add members)
+
+CREATE POLICY "Organization owners can add members" ON organization_memberships
+
+FOR INSERT WITH CHECK (
+
+  organization_id IN (
+
+    SELECT id FROM organizations 
+
+    WHERE created_by_user_id = auth.uid()::text
+
+  )
+
+);
+
+-- Test the policies with a simple query
+
+-- This should return only documents the current user can access
+
+SELECT 
+
+  d.filename, 
+
+  d.user_id,
+
+  d.organization_id,
+
+  d.visibility,
+
+  CASE 
+
+    WHEN d.organization_id IS NULL THEN 'Personal Document'
+
+    ELSE 'Organization Document'
+
+  END as document_type
+
+FROM documents d
+
+LIMIT 5;
+
+-- Phase 1.4: Update vector search function for organization support
+
+-- Run this in Supabase SQL Editor
+
+-- Drop the existing function
+
+DROP FUNCTION IF EXISTS match_documents(vector, int, text);
+
+-- Create updated function with organization support
+
+CREATE OR REPLACE FUNCTION match_documents (
+
+  query_embedding vector(384),
+
+  match_count int,
+
+  user_id text DEFAULT NULL,
+
+  organization_id uuid DEFAULT NULL
+
+) RETURNS TABLE (
+
+  chunk_text text,
+
+  similarity float,
+
+  document_id uuid,
+
+  source_type text,
+
+  user_id text,
+
+  organization_id uuid
+
+) LANGUAGE sql STABLE SECURITY DEFINER AS $$
+
+  SELECT 
+
+    dc.chunk_text,
+
+    1 - (dc.embedding <=> query_embedding) as similarity,
+
+    dc.document_id,
+
+    CASE 
+
+      WHEN dc.organization_id IS NULL THEN 'personal'
+
+      ELSE 'organization'
+
+    END as source_type,
+
+    dc.user_id,
+
+    dc.organization_id
+
+  FROM document_chunks dc
+
+  LEFT JOIN documents d ON dc.document_id = d.id
+
+  WHERE (
+
+    -- User's own chunks (existing single-user flow)
+
+    dc.user_id = COALESCE(match_documents.user_id, auth.uid()::text)
+
+    OR
+
+    -- Organization chunks where user is member and document is organization-visible
+
+    (
+
+      dc.organization_id IS NOT NULL
+
+      AND d.visibility = 'organization'
+
+      AND dc.organization_id IN (
+
+        SELECT om.organization_id 
+
+        FROM organization_memberships om 
+
+        WHERE om.user_id = COALESCE(match_documents.user_id, auth.uid()::text)
+
+      )
+
+      -- If specific org_id provided, filter by it
+
+      AND (match_documents.organization_id IS NULL OR dc.organization_id = match_documents.organization_id)
+
+    )
+
+  )
+
+  ORDER BY dc.embedding <=> query_embedding
+
+  LIMIT match_count;
+
+$$;
+
+-- Test the function with a simple call
+
+-- This should work with your existing data (single user mode)
+
+SELECT 
+
+  source_type,
+
+  COUNT(*) as chunk_count
+
+FROM match_documents('[0,0,0]'::vector(3), 5) -- dummy embedding for test
+
+GROUP BY source_type;
+
+COMMENT ON FUNCTION match_documents IS 'Enhanced vector search supporting both personal and organization documents with RLS';
