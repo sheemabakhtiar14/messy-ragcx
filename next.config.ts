@@ -3,7 +3,6 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* Production optimizations */
   reactStrictMode: true,
-  swcMinify: true,
   compress: true,
 
   /* Environment variables for production */
@@ -57,11 +56,6 @@ const nextConfig: NextConfig = {
 
   /* Output configuration for deployment */
   output: "standalone",
-
-  /* Experimental features for better performance */
-  experimental: {
-    optimizeCss: true,
-  },
 
   /* PoweredByHeader removal for security */
   poweredByHeader: false,
