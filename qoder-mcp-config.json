@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "supabase-rag": {
+      "command": "node",
+      "args": ["c:\\Users\\sheema bakhtiar\\ragv2\\mcp-server.js"],
+      "env": {
+        "NEXT_PUBLIC_SUPABASE_URL": "https://vpqjrrbosaedeydqwhkf.supabase.co",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwcWpycmJvc2FlZGV5ZHF3aGtmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyOTA3ODQsImV4cCI6MjA3MTg2Njc4NH0.QAobgZIX8zXCQJRnxjJk9qZupZkG0VVlPedwiU894ZI",
+        "SUPABASE_SERVICE_ROLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwcWpycmJvc2FlZGV5ZHF3aGtmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjI5MDc4NCwiZXhwIjoyMDcxODY2Nzg0fQ.1pItbjiG5BOPkQgcVrJg-hF13kvNddjbmZ2YsStRPys",
+        "SUPABASE_ACCESS_TOKEN": "sbp_bbe87acf04c3015e60680aa8f2edf7c8b8ce2b42",
+        "HUGGINGFACE_API_KEY": "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",
+        "MCP_ENABLED": "true",
+        "MCP_PORT": "3000",
+        "LOG_LEVEL": "info",
+        "NODE_ENV": "development"
+      },
+      "cwd": "c:\\Users\\sheema bakhtiar\\ragv2",
+      "timeout": 30000,
+      "description": "Enhanced Supabase RAGv2 MCP Server - Database operations, document management, semantic search, and management API access"
+    }
+  }
+}

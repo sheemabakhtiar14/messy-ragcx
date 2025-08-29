@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Agent - Production (Real Authentication)</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 40px 20px;
+        line-height: 1.6;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        color: white;
+      }
+      .container {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 40px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        text-align: center;
+        margin-bottom: 30px;
+        font-size: 2.5em;
+      }
+      .feature {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 20px;
+        margin: 20px 0;
+        border-radius: 10px;
+        border-left: 4px solid #a259ff;
+      }
+      .success {
+        background: rgba(34, 197, 94, 0.2);
+        padding: 15px;
+        border-radius: 8px;
+        margin: 20px 0;
+        border: 1px solid rgba(34, 197, 94, 0.5);
+      }
+      .warning {
+        background: rgba(239, 68, 68, 0.2);
+        padding: 15px;
+        border-radius: 8px;
+        margin: 20px 0;
+        border: 1px solid rgba(239, 68, 68, 0.5);
+      }
+      .auth-section {
+        background: rgba(255, 255, 255, 0.15);
+        padding: 20px;
+        border-radius: 10px;
+        margin: 20px 0;
+      }
+      input,
+      button {
+        padding: 10px;
+        margin: 5px;
+        border: none;
+        border-radius: 5px;
+        font-size: 14px;
+      }
+      button {
+        background: #a259ff;
+        color: white;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+      button:hover {
+        background: #7c3aed;
+      }
+      button:disabled {
+        background: #6b7280;
+        cursor: not-allowed;
+      }
+      .login-form {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-width: 300px;
+        margin: 0 auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🤖 AI Agent - Production</h1>
+
+      <div class="success">
+        <strong>✅ Production Ready!</strong> This version uses real Supabase
+        authentication and strict user-specific document filtering.
+      </div>
+
+      <div class="feature">
+        <h3>🔒 Real Authentication System</h3>
+        <p>
+          This AI agent connects to your real Next.js application and uses
+          actual Supabase authentication tokens to ensure security.
+        </p>
+      </div>
+
+      <div class="feature">
+        <h3>🛡️ User-Specific Document Access</h3>
+        <p>
+          The AI agent will ONLY access documents that YOU have uploaded. No
+          other user's documents will be visible to you.
+        </p>
+      </div>
+
+      <div class="auth-section" id="authSection">
+        <h3>🔐 Authentication Status</h3>
+        <div id="loginArea">
+          <p>Please log in to access your personal AI agent:</p>
+          <div class="login-form">
+            <input
+              type="email"
+              id="email"
+              placeholder="Enter your email"
+              required
+            />
+            <input
+              type="password"
+              id="password"
+              placeholder="Enter your password"
+              required
+            />
+            <button onclick="signInWithEmail()" id="signInBtn">Sign In</button>
+            <button onclick="signInWithGoogle()" id="googleSignInBtn">
+              Sign In with Google
+            </button>
+          </div>
+          <p><small>Or if you don't have an account:</small></p>
+          <button onclick="signUpWithEmail()" id="signUpBtn">
+            Create Account
+          </button>
+        </div>
+        <div id="loggedInArea" style="display: none">
+          <p id="userInfo"></p>
+          <button onclick="signOut()" id="signOutBtn">Sign Out</button>
+        </div>
+        <p id="authStatus" style="margin-top: 10px; font-weight: bold"></p>
+      </div>
+
+      <div class="feature">
+        <h3>💬 How to Use</h3>
+        <p>
+          1. First, upload documents through your main Next.js application<br />
+          2. Sign in above using your real credentials<br />
+          3. Click the AI chat button to ask questions about YOUR documents<br />
+          4. The AI will only search through documents you've uploaded
+        </p>
+      </div>
+
+      <div class="warning">
+        <strong>⚠️ Important:</strong> Make sure your Next.js server is running
+        on the correct port (check the configuration below).
+      </div>
+
+      <div style="text-align: center; margin-top: 40px">
+        <p>
+          <strong
+            >Look for the 🤖 chat button in the bottom-right corner after
+            signing in!</strong
+          >
+        </p>
+      </div>
+    </div>
+
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.56.0/dist/umd/supabase.min.js"></script>
+
+    <!-- Production AI Agent Script with Real Supabase Authentication -->
+    <script>
+      // Supabase configuration - REPLACE WITH YOUR ACTUAL VALUES
+      const SUPABASE_URL = "https://vpqjrrbosaedeydqwhkf.supabase.co";
+      const SUPABASE_ANON_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwcWpycmJvc2FlZGV5ZHF3aGtmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyOTA3ODQsImV4cCI6MjA3MTg2Njc4NH0.QAobgZIX8zXCQJRnxjJk9qZupZkG0VVlPedwiU894ZI";
+
+      // API URL - CHANGE THIS TO YOUR SERVER URL
+      const API_URL = "http://localhost:3001";
+
+      // Initialize Supabase
+      const { createClient } = supabase;
+      const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+      // Authentication state
+      let currentUser = null;
+      let authToken = null;
+
+      // Authentication functions
+      async function signInWithEmail() {
+        const email = document.getElementById("email").value;
+        const password = document.getElementById("password").value;
+
+        if (!email || !password) {
+          setAuthStatus("Please enter both email and password", "error");
+          return;
+        }
+
+        setAuthStatus("Signing in...", "info");
+
+        try {
+          const { data, error } = await supabaseClient.auth.signInWithPassword({
+            email: email,
+            password: password,
+          });
+
+          if (error) {
+            throw error;
+          }
+
+          setAuthStatus("Successfully signed in!", "success");
+          handleAuthChange(data.session);
+        } catch (error) {
+          console.error("Sign in error:", error);
+          setAuthStatus(`Sign in failed: ${error.message}`, "error");
+        }
+      }
+
+      async function signUpWithEmail() {
+        const email = document.getElementById("email").value;
+        const password = document.getElementById("password").value;
+
+        if (!email || !password) {
+          setAuthStatus("Please enter both email and password", "error");
+          return;
+        }
+
+        if (password.length < 6) {
+          setAuthStatus("Password must be at least 6 characters", "error");
+          return;
+        }
+
+        setAuthStatus("Creating account...", "info");
+
+        try {
+          const { data, error } = await supabaseClient.auth.signUp({
+            email: email,
+            password: password,
+          });
+
+          if (error) {
+            throw error;
+          }
+
+          setAuthStatus(
+            "Account created! Check your email for verification.",
+            "success"
+          );
+        } catch (error) {
+          console.error("Sign up error:", error);
+          setAuthStatus(`Sign up failed: ${error.message}`, "error");
+        }
+      }
+
+      async function signInWithGoogle() {
+        setAuthStatus("Redirecting to Google...", "info");
+
+        try {
+          const { error } = await supabaseClient.auth.signInWithOAuth({
+            provider: "google",
+            options: {
+              redirectTo: window.location.href, // Redirect back to the same HTML file
+            },
+          });
+
+          if (error) {
+            throw error;
+          }
+        } catch (error) {
+          console.error("Google sign in error:", error);
+          setAuthStatus(`Google sign in failed: ${error.message}`, "error");
+        }
+      }
+
+      async function signOut() {
+        try {
+          const { error } = await supabaseClient.auth.signOut();
+
+          if (error) {
+            throw error;
+          }
+
+          handleAuthChange(null);
+          setAuthStatus("Successfully signed out", "info");
+        } catch (error) {
+          console.error("Sign out error:", error);
+          setAuthStatus(`Sign out failed: ${error.message}`, "error");
+        }
+      }
+
+      function handleAuthChange(session) {
+        if (session) {
+          currentUser = session.user;
+          authToken = session.access_token;
+
+          // Show logged in state
+          document.getElementById("loginArea").style.display = "none";
+          document.getElementById("loggedInArea").style.display = "block";
+          document.getElementById("userInfo").innerHTML = `
+            <strong>Logged in as:</strong> ${currentUser.email}<br>
+            <small>User ID: ${currentUser.id}</small>
+          `;
+
+          // Initialize AI agent
+          initializeAIAgent();
+        } else {
+          currentUser = null;
+          authToken = null;
+
+          // Show login state
+          document.getElementById("loginArea").style.display = "block";
+          document.getElementById("loggedInArea").style.display = "none";
+
+          // Remove AI agent if it exists
+          const existingAgent = document.getElementById("production-ai-agent");
+          if (existingAgent) {
+            existingAgent.remove();
+          }
+        }
+      }
+
+      function setAuthStatus(message, type) {
+        const statusElement = document.getElementById("authStatus");
+        statusElement.textContent = message;
+
+        const colors = {
+          success: "#10b981",
+          error: "#ef4444",
+          info: "#3b82f6",
+        };
+
+        statusElement.style.color = colors[type] || "#6b7280";
+      }
+
+      // Initialize authentication state
+      supabaseClient.auth.onAuthStateChange((event, session) => {
+        console.log("Auth state changed:", event, session?.user?.email);
+        handleAuthChange(session);
+
+        // Handle OAuth callback
+        if (event === "SIGNED_IN" && session) {
+          // Clean up URL if it has OAuth parameters
+          if (
+            window.location.hash.includes("access_token") ||
+            window.location.search.includes("code")
+          ) {
+            window.history.replaceState(
+              {},
+              document.title,
+              window.location.pathname
+            );
+          }
+        }
+      });
+
+      // Check for existing session on page load
+      supabaseClient.auth.getSession().then(({ data: { session } }) => {
+        handleAuthChange(session);
+      });
+
+      // AI Agent initialization
+      function initializeAIAgent() {
+        if (!currentUser || !authToken) {
+          console.log("No user or token available for AI agent");
+          return;
+        }
+
+        console.log("Initializing AI agent for user:", currentUser.email);
+
+        // Configuration
+        var config = {
+          apiUrl: API_URL,
+          primaryColor: "#A259FF",
+          hoverColor: "#7C3AED",
+          textColor: "#333",
+          backgroundColor: "#fff",
+          user: currentUser,
+          token: authToken,
+        };
+
+        // Create AI Agent Container
+        var aiContainer = document.createElement("div");
+        aiContainer.id = "production-ai-agent";
+        aiContainer.style.cssText =
+          "position:fixed;bottom:20px;right:20px;z-index:99999;font-family:Arial,sans-serif;";
+
+        // Chat Widget (initially hidden)
+        var chatWidget = document.createElement("div");
+        chatWidget.style.cssText =
+          "display:none;width:350px;height:500px;background:white;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,0.2);overflow:hidden;border:1px solid #e5e7eb;flex-direction:column;";
+
+        // Chat Header
+        var chatHeader = document.createElement("div");
+        chatHeader.style.cssText =
+          "background:" +
+          config.primaryColor +
+          ";color:white;padding:16px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;";
+
+        var headerContent = document.createElement("div");
+        headerContent.innerHTML =
+          "<strong>🤖 Your Personal AI</strong><br><small>Searching only YOUR documents</small>";
+
+        var closeButton = document.createElement("button");
+        closeButton.innerHTML = "×";
+        closeButton.style.cssText =
+          "background:none;border:none;color:white;font-size:20px;cursor:pointer;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;";
+
+        chatHeader.appendChild(headerContent);
+        chatHeader.appendChild(closeButton);
+
+        // Chat Messages Container
+        var messagesContainer = document.createElement("div");
+        messagesContainer.style.cssText =
+          "height:320px;overflow-y:auto;padding:16px;background:#f9f9f9;flex:1;";
+
+        // Initial welcome message
+        var welcomeMsg = document.createElement("div");
+        welcomeMsg.style.cssText =
+          "background:white;padding:12px;border-radius:12px;margin-bottom:12px;box-shadow:0 2px 4px rgba(0,0,0,0.1);";
+        welcomeMsg.innerHTML =
+          "<strong>Your Personal AI:</strong><br>Hello " +
+          currentUser.email +
+          "! I can help you find information from YOUR uploaded documents. What would you like to know?";
+        messagesContainer.appendChild(welcomeMsg);
+
+        // Chat Input Container
+        var inputContainer = document.createElement("div");
+        inputContainer.style.cssText =
+          "padding:16px;background:white;border-top:1px solid #e5e7eb;display:flex;gap:8px;min-height:70px;box-sizing:border-box;flex-shrink:0;";
+
+        var chatInput = document.createElement("input");
+        chatInput.type = "text";
+        chatInput.placeholder = "Ask about your documents...";
+        chatInput.style.cssText =
+          "flex:1;padding:12px;border:1px solid #d1d5db;border-radius:8px;outline:none;font-size:14px;height:40px;box-sizing:border-box;background:white;";
+
+        var sendButton = document.createElement("button");
+        sendButton.innerHTML = "➤";
+        sendButton.style.cssText =
+          "background:" +
+          config.primaryColor +
+          ";color:white;border:none;border-radius:8px;padding:12px 16px;cursor:pointer;font-size:16px;height:40px;min-width:50px;";
+
+        inputContainer.appendChild(chatInput);
+        inputContainer.appendChild(sendButton);
+
+        // Assemble chat widget
+        chatWidget.appendChild(chatHeader);
+        chatWidget.appendChild(messagesContainer);
+        chatWidget.appendChild(inputContainer);
+
+        // Floating Chat Button
+        var chatButton = document.createElement("button");
+        chatButton.style.cssText =
+          "width:60px;height:60px;border-radius:50%;background:" +
+          config.primaryColor +
+          ";border:none;cursor:pointer;box-shadow:0 4px 16px rgba(162,89,255,0.4);color:white;font-size:24px;transition:all 0.3s ease;";
+        chatButton.innerHTML = "🤖";
+
+        // Add to container
+        aiContainer.appendChild(chatWidget);
+        aiContainer.appendChild(chatButton);
+        document.body.appendChild(aiContainer);
+
+        // State management
+        var isOpen = false;
+        var isLoading = false;
+
+        // Chat functions
+        function toggleChat() {
+          isOpen = !isOpen;
+          chatWidget.style.display = isOpen ? "flex" : "none";
+          chatButton.style.transform = isOpen ? "scale(0.9)" : "scale(1)";
+
+          if (isOpen) {
+            setTimeout(function () {
+              chatInput.focus();
+            }, 100);
+          }
+        }
+
+        function addMessage(content, isUser = false, isError = false) {
+          var messageDiv = document.createElement("div");
+          var bgColor = isUser
+            ? config.primaryColor
+            : isError
+              ? "#ef4444"
+              : "white";
+          var textColor = isUser
+            ? "white"
+            : isError
+              ? "white"
+              : config.textColor;
+
+          messageDiv.style.cssText =
+            "background:" +
+            bgColor +
+            ";color:" +
+            textColor +
+            ";padding:12px;border-radius:12px;margin-bottom:12px;box-shadow:0 2px 4px rgba(0,0,0,0.1);word-wrap:break-word;";
+          messageDiv.innerHTML =
+            (isUser
+              ? "<strong>You:</strong><br>"
+              : isError
+                ? "<strong>Error:</strong><br>"
+                : "<strong>Your AI:</strong><br>") + content;
+
+          messagesContainer.appendChild(messageDiv);
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function showLoading() {
+          var loadingDiv = document.createElement("div");
+          loadingDiv.id = "loading-indicator";
+          loadingDiv.style.cssText =
+            "background:white;padding:12px;border-radius:12px;margin-bottom:12px;box-shadow:0 2px 4px rgba(0,0,0,0.1);";
+          loadingDiv.innerHTML =
+            "<strong>Your AI:</strong><br>🔍 Searching your documents...";
+          messagesContainer.appendChild(loadingDiv);
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function hideLoading() {
+          var loadingIndicator = document.getElementById("loading-indicator");
+          if (loadingIndicator) {
+            loadingIndicator.remove();
+          }
+        }
+
+        // Send message to API with real authentication
+        async function sendMessage(question) {
+          if (isLoading || !question.trim()) return;
+
+          if (!authToken) {
+            addMessage(
+              "Authentication expired. Please refresh the page and log in again.",
+              false,
+              true
+            );
+            return;
+          }
+
+          isLoading = true;
+          addMessage(question, true);
+          showLoading();
+
+          try {
+            const response = await fetch(config.apiUrl + "/api/ask-user", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + authToken,
+              },
+              body: JSON.stringify({
+                question: question,
+                search_scope: "user",
+              }),
+            });
+
+            hideLoading();
+
+            if (response.ok) {
+              const data = await response.json();
+              var answer =
+                data.answer ||
+                "Sorry, I could not find an answer in your documents.";
+
+              if (data.stats) {
+                answer +=
+                  "<br><br><small><strong>📊 Search Stats:</strong><br>";
+                answer += `• Your documents searched: ${data.stats.documentsSearched || 0}<br>`;
+                answer += `• Relevant results: ${data.stats.relevantDocuments || 0}</small>`;
+              }
+
+              if (data.sources && data.sources.length > 0) {
+                answer +=
+                  "<br><br><small><strong>📄 Sources from your documents:</strong><br>";
+                data.sources.forEach(function (source, index) {
+                  answer += index + 1 + ". " + source.filename + "<br>";
+                  answer += '   "' + source.text + '"<br>';
+                });
+                answer += "</small>";
+              }
+
+              answer +=
+                "<br><br><small>🔒 Authenticated as: " +
+                currentUser.email +
+                "</small>";
+
+              addMessage(answer);
+            } else if (response.status === 401) {
+              addMessage(
+                "Authentication expired. Please refresh the page and log in again.",
+                false,
+                true
+              );
+            } else {
+              const errorData = await response.json();
+              addMessage(
+                errorData.error ||
+                  "Sorry, something went wrong. Please try again.",
+                false,
+                true
+              );
+            }
+          } catch (error) {
+            hideLoading();
+            console.error("API Error:", error);
+            addMessage(
+              "Connection error. Please check that your server is running on " +
+                config.apiUrl,
+              false,
+              true
+            );
+          }
+
+          isLoading = false;
+        }
+
+        // Event listeners
+        chatButton.addEventListener("click", toggleChat);
+        closeButton.addEventListener("click", toggleChat);
+
+        sendButton.addEventListener("click", function () {
+          sendMessage(chatInput.value);
+          chatInput.value = "";
+        });
+
+        chatInput.addEventListener("keypress", function (e) {
+          if (e.key === "Enter") {
+            sendMessage(chatInput.value);
+            chatInput.value = "";
+          }
+        });
+
+        // Hover effects
+        chatButton.addEventListener("mouseenter", function () {
+          this.style.background = config.hoverColor;
+          this.style.transform = "scale(1.1)";
+        });
+
+        chatButton.addEventListener("mouseleave", function () {
+          this.style.background = config.primaryColor;
+          this.style.transform = isOpen ? "scale(0.9)" : "scale(1)";
+        });
+
+        console.log(
+          "Production AI Agent initialized successfully for user:",
+          currentUser.email
+        );
+      }
+    </script>
+  </body>
+</html>

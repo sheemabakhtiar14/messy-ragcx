@@ -666,6 +666,35 @@ const ScriptStep = ({ selectedPlatform, selectedElement, generateScript }) => {
           ✅ Script copied to clipboard!
         </div>
       )}
+
+      {selectedElement === "ai-agent" && (
+        <div
+          style={{
+            marginTop: "24px",
+            padding: "20px",
+            borderRadius: "12px",
+            backgroundColor: "#FEF3C7",
+            border: "1px solid #F59E0B",
+            color: "#92400E",
+            fontSize: "14px",
+            lineHeight: "1.6",
+          }}
+        >
+          <h3 style={{ margin: "0 0 12px 0", fontSize: "16px", fontWeight: "600" }}>
+            🚀 How to use your AI Agent:
+          </h3>
+          <ol style={{ margin: "0 0 12px 0", paddingLeft: "20px" }}>
+            <li>Copy the script above</li>
+            <li>Paste it as a script tag in any website: <code>&lt;script&gt;[paste here]&lt;/script&gt;</code></li>
+            <li>The AI chat button will appear in the bottom-right corner</li>
+            <li>Users can click it to ask questions about your uploaded documents</li>
+          </ol>
+          <p style={{ margin: "0", fontSize: "13px", fontStyle: "italic" }}>
+            <strong>Note:</strong> For the AI to work, users need to be authenticated with your RAG system. 
+            The current version shows authentication prompts for unauthenticated users.
+          </p>
+        </div>
+      )}
     </div>
   );
 };
@@ -1065,31 +1094,212 @@ export default function SecureRAGHome() {
         })();
       `,
       "ai-agent": `
-        (function() {
-          var host = document.currentScript;
-          
-          // Root container
-          var container = document.createElement("div");
-          container.setAttribute("aria-hidden","false");
-          container.style.cssText = "position:fixed;bottom:22px;right:22px;z-index:99999;";
-          
-          // AI Agent button
-          var btn = document.createElement("button");
-          btn.setAttribute("aria-label","Open AI chat");
-          btn.style.cssText = "width:60px;height:60px;border-radius:50%;background:#A259FF;border:none;cursor:pointer;box-shadow:0 4px 12px rgba(162,89,255,0.3);";
-          
-          var icon = document.createElement("div");
-          icon.innerHTML = "🤖";
-          icon.style.cssText = "font-size:24px;";
-          
-          btn.appendChild(icon);
-          container.appendChild(btn);
-          document.body.appendChild(container);
-          
-          btn.onclick = function() {
-            alert("AI Agent chat would open here!");
-          };
-        })();
+(function() {
+  // Configuration
+  var config = {
+    apiUrl: '${window.location.origin}', // Your domain
+    primaryColor: '#A259FF',
+    hoverColor: '#7C3AED',
+    textColor: '#333',
+    backgroundColor: '#fff'
+  };
+
+  // Create AI Agent Container
+  var aiContainer = document.createElement('div');
+  aiContainer.id = 'rag-ai-agent';
+  aiContainer.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:99999;font-family:Arial,sans-serif;';
+
+  // Chat Widget (initially hidden)
+  var chatWidget = document.createElement('div');
+  chatWidget.style.cssText = 'display:none;width:350px;height:500px;background:white;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,0.2);overflow:hidden;border:1px solid #e5e7eb;';
+
+  // Chat Header
+  var chatHeader = document.createElement('div');
+  chatHeader.style.cssText = 'background:' + config.primaryColor + ';color:white;padding:16px;display:flex;justify-content:space-between;align-items:center;';
+  chatHeader.innerHTML = '<div><strong>🤖 AI Assistant</strong><br><small>Ask me anything about your documents</small></div><button id="close-chat" style="background:none;border:none;color:white;font-size:20px;cursor:pointer;">×</button>';
+
+  // Chat Messages Container
+  var messagesContainer = document.createElement('div');
+  messagesContainer.style.cssText = 'height:360px;overflow-y:auto;padding:16px;background:#f9f9f9;';
+  
+  // Initial welcome message
+  var welcomeMsg = document.createElement('div');
+  welcomeMsg.style.cssText = 'background:white;padding:12px;border-radius:12px;margin-bottom:12px;box-shadow:0 2px 4px rgba(0,0,0,0.1);';
+  welcomeMsg.innerHTML = '<strong>AI Assistant:</strong><br>Hello! I can help you find information from your documents. What would you like to know?';
+  messagesContainer.appendChild(welcomeMsg);
+
+  // Chat Input Container
+  var inputContainer = document.createElement('div');
+  inputContainer.style.cssText = 'padding:16px;background:white;border-top:1px solid #e5e7eb;display:flex;gap:8px;';
+
+  var chatInput = document.createElement('input');
+  chatInput.type = 'text';
+  chatInput.placeholder = 'Type your question...';
+  chatInput.style.cssText = 'flex:1;padding:10px;border:1px solid #d1d5db;border-radius:8px;outline:none;font-size:14px;';
+
+  var sendButton = document.createElement('button');
+  sendButton.innerHTML = '➤';
+  sendButton.style.cssText = 'background:' + config.primaryColor + ';color:white;border:none;border-radius:8px;padding:10px 16px;cursor:pointer;font-size:16px;';
+
+  inputContainer.appendChild(chatInput);
+  inputContainer.appendChild(sendButton);
+
+  // Assemble chat widget
+  chatWidget.appendChild(chatHeader);
+  chatWidget.appendChild(messagesContainer);
+  chatWidget.appendChild(inputContainer);
+
+  // Floating Chat Button
+  var chatButton = document.createElement('button');
+  chatButton.style.cssText = 'width:60px;height:60px;border-radius:50%;background:' + config.primaryColor + ';border:none;cursor:pointer;box-shadow:0 4px 16px rgba(162,89,255,0.4);color:white;font-size:24px;transition:all 0.3s ease;';
+  chatButton.innerHTML = '🤖';
+
+  // Add to container
+  aiContainer.appendChild(chatWidget);
+  aiContainer.appendChild(chatButton);
+  document.body.appendChild(aiContainer);
+
+  // State management
+  var isOpen = false;
+  var isLoading = false;
+
+  // Chat toggle function
+  function toggleChat() {
+    isOpen = !isOpen;
+    chatWidget.style.display = isOpen ? 'block' : 'none';
+    chatButton.style.transform = isOpen ? 'scale(0.9)' : 'scale(1)';
+  }
+
+  // Add message to chat
+  function addMessage(content, isUser = false, isError = false) {
+    var messageDiv = document.createElement('div');
+    var bgColor = isUser ? config.primaryColor : (isError ? '#ef4444' : 'white');
+    var textColor = isUser ? 'white' : (isError ? 'white' : config.textColor);
+    
+    messageDiv.style.cssText = 'background:' + bgColor + ';color:' + textColor + ';padding:12px;border-radius:12px;margin-bottom:12px;box-shadow:0 2px 4px rgba(0,0,0,0.1);word-wrap:break-word;';
+    messageDiv.innerHTML = (isUser ? '<strong>You:</strong><br>' : (isError ? '<strong>Error:</strong><br>' : '<strong>AI Assistant:</strong><br>')) + content;
+    
+    messagesContainer.appendChild(messageDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
+
+  // Show loading indicator
+  function showLoading() {
+    var loadingDiv = document.createElement('div');
+    loadingDiv.id = 'loading-indicator';
+    loadingDiv.style.cssText = 'background:white;padding:12px;border-radius:12px;margin-bottom:12px;box-shadow:0 2px 4px rgba(0,0,0,0.1);';
+    loadingDiv.innerHTML = '<strong>AI Assistant:</strong><br>🤔 Thinking...';
+    messagesContainer.appendChild(loadingDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
+
+  function hideLoading() {
+    var loadingIndicator = document.getElementById('loading-indicator');
+    if (loadingIndicator) {
+      loadingIndicator.remove();
+    }
+  }
+
+  // Send message to API
+  async function sendMessage(question) {
+    if (isLoading || !question.trim()) return;
+    
+    isLoading = true;
+    addMessage(question, true);
+    showLoading();
+    
+    try {
+      // You'll need to handle authentication here - for now using a placeholder
+      const response = await fetch(config.apiUrl + '/api/ask-public', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // Note: In a real implementation, you'd need to handle authentication
+          // 'Authorization': 'Bearer ' + userToken
+        },
+        body: JSON.stringify({
+          question: question,
+          search_scope: 'all'
+        })
+      });
+
+      hideLoading();
+      
+      if (response.ok) {
+        const data = await response.json();
+        var answer = data.answer || 'Sorry, I could not find an answer to your question.';
+        
+        // Format answer with sources if available
+        if (data.sources && data.sources.length > 0) {
+          answer += '<br><br><small><strong>Sources:</strong><br>';
+          data.sources.forEach(function(source, index) {
+            answer += (index + 1) + '. ' + source.text + '<br>';
+          });
+          answer += '</small>';
+        }
+        
+        addMessage(answer);
+      } else if (response.status === 401) {
+        addMessage('Please log in to ask questions. You need to authenticate first to access your documents.', false, true);
+      } else {
+        const errorData = await response.json();
+        addMessage(errorData.error || 'Sorry, something went wrong. Please try again.', false, true);
+      }
+    } catch (error) {
+      hideLoading();
+      addMessage('Connection error. Please check your internet connection and try again.', false, true);
+    }
+    
+    isLoading = false;
+  }
+
+  // Event listeners
+  chatButton.addEventListener('click', toggleChat);
+  
+  document.getElementById('close-chat').addEventListener('click', toggleChat);
+  
+  sendButton.addEventListener('click', function() {
+    sendMessage(chatInput.value);
+    chatInput.value = '';
+  });
+  
+  chatInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      sendMessage(chatInput.value);
+      chatInput.value = '';
+    }
+  });
+
+  // Hover effects
+  chatButton.addEventListener('mouseenter', function() {
+    this.style.background = config.hoverColor;
+    this.style.transform = 'scale(1.1)';
+  });
+  
+  chatButton.addEventListener('mouseleave', function() {
+    this.style.background = config.primaryColor;
+    this.style.transform = isOpen ? 'scale(0.9)' : 'scale(1)';
+  });
+  
+  sendButton.addEventListener('mouseenter', function() {
+    this.style.background = config.hoverColor;
+  });
+  
+  sendButton.addEventListener('mouseleave', function() {
+    this.style.background = config.primaryColor;
+  });
+
+  // Auto-focus input when chat opens
+  var originalToggleChat = toggleChat;
+  toggleChat = function() {
+    originalToggleChat();
+    if (isOpen) {
+      setTimeout(function() { chatInput.focus(); }, 100);
+    }
+  };
+
+  console.log('RAG AI Agent initialized successfully!');
+})();
       `,
       "support-agent": `
         (function() {
