@@ -22,59 +22,108 @@ const supabase = createClient(
 
 // Header Component with User Info
 const Header = ({ user, signOut }) => (
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "flex-end",
-      alignItems: "center",
-      marginBottom: "24px",
-    }}
-  >
-    {/* User Info Section */}
-    {user && (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "12px",
-          padding: "10px 16px",
-          borderRadius: "12px",
-          backgroundColor: "#ffffff",
-          color: "#1f2937",
-          boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
-          fontSize: "14px",
-        }}
-      >
-        <div>
-          <div style={{ fontWeight: "600" }}>{user.email}</div>
-        </div>
+  <>
+    {/* Responsive CSS */}
+    <style jsx>{`
+      @media (max-width: 768px) {
+        .header-container {
+          padding: 0 16px !important;
+          margin-bottom: 16px !important;
+        }
+        .user-info {
+          flex-direction: column !important;
+          gap: 8px !important;
+          padding: 12px !important;
+          width: 100% !important;
+        }
+        .user-email {
+          font-size: 12px !important;
+          text-align: center;
+          word-break: break-all;
+        }
+        .sign-out-btn {
+          width: 100% !important;
+          justify-content: center !important;
+          padding: 8px 16px !important;
+        }
+      }
+      @media (max-width: 480px) {
+        .user-info {
+          padding: 10px !important;
+        }
+        .user-email {
+          font-size: 11px !important;
+        }
+        .sign-out-btn {
+          font-size: 11px !important;
+          padding: 6px 12px !important;
+        }
+      }
+    `}</style>
 
-        <button
-          onClick={signOut}
+    <div
+      className="header-container"
+      style={{
+        display: "flex",
+        justifyContent: "flex-end",
+        alignItems: "center",
+        marginBottom: "24px",
+        width: "100%",
+      }}
+    >
+      {/* User Info Section */}
+      {user && (
+        <div
+          className="user-info"
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "6px",
-            padding: "6px 12px",
-            fontSize: "12px",
-            borderRadius: "8px",
-            backgroundColor: "#ef4444",
-            color: "#fff",
-            border: "none",
-            cursor: "pointer",
-            transition: "all 0.2s ease-in-out",
+            gap: "12px",
+            padding: "10px 16px",
+            borderRadius: "12px",
+            backgroundColor: "#ffffff",
+            color: "#1f2937",
+            boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+            fontSize: "14px",
+            maxWidth: "100%",
           }}
-          onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#dc2626")}
-          onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#ef4444")}
         >
-          <LogOut size={14} />
-          Sign Out
-        </button>
-      </div>
-    )}
-  </div>
-);
+          <div className="user-email">
+            <div style={{ fontWeight: "600" }}>{user.email}</div>
+          </div>
 
+          <button
+            className="sign-out-btn"
+            onClick={signOut}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "6px 12px",
+              fontSize: "12px",
+              borderRadius: "8px",
+              backgroundColor: "#ef4444",
+              color: "#fff",
+              border: "none",
+              cursor: "pointer",
+              transition: "all 0.2s ease-in-out",
+              whiteSpace: "nowrap",
+            }}
+            onMouseOver={(e) =>
+              (e.currentTarget.style.backgroundColor = "#dc2626")
+            }
+            onMouseOut={(e) =>
+              (e.currentTarget.style.backgroundColor = "#ef4444")
+            }
+          >
+            <LogOut size={14} />
+            Sign Out
+          </button>
+        </div>
+      )}
+    </div>
+  </>
+);
 
 // Step Header Component
 const StepHeader = ({ currentStep }) => {
@@ -94,13 +143,13 @@ const StepHeader = ({ currentStep }) => {
       </style>
 
       <h1
+        className="step-title fade-slide"
         style={{
           fontSize: "32px",
           fontWeight: "bold",
           marginBottom: "12px",
           color: "#111827",
         }}
-        className="fade-slide"
       >
         Welcome to RAG.CX
       </h1>
@@ -179,6 +228,7 @@ const FileUploadStep = ({
   <div style={{ width: "100%" }}>
     {/* Title */}
     <h2
+      className="step-title"
       style={{
         fontSize: "28px",
         fontWeight: "700",
@@ -193,6 +243,7 @@ const FileUploadStep = ({
 
     {/* Upload Area */}
     <div
+      className="upload-area"
       style={{
         border: "2px dashed",
         borderColor: isDragging ? "#A259FF" : "#D1D5DB",
@@ -393,9 +444,11 @@ const PlatformStep = ({ selectedPlatform, setSelectedPlatform }) => {
 
   return (
     <div style={containerStyle}>
-      <h2 style={headingStyle}>Select Your Platform</h2>
+      <h2 className="platform-title" style={headingStyle}>
+        Select Your Platform
+      </h2>
 
-      <div style={gridStyle}>
+      <div className="platform-grid" style={gridStyle}>
         {platforms.map(({ id, icon: Icon, label, comingSoon }) => {
           let cardStyle = { ...baseCardStyle };
 
@@ -410,6 +463,7 @@ const PlatformStep = ({ selectedPlatform, setSelectedPlatform }) => {
           return (
             <button
               key={id}
+              className="platform-card"
               onClick={() => !comingSoon && setSelectedPlatform(id)}
               onMouseEnter={() => !comingSoon && setHovered(id)}
               onMouseLeave={() => setHovered(null)}
@@ -465,13 +519,16 @@ const ElementStep = ({ selectedElement, setSelectedElement }) => {
 
   return (
     <div style={cardStyle}>
-      <h2 style={headingStyle}>Select an Element</h2>
-      <div style={gridStyle}>
+      <h2 className="platform-title" style={headingStyle}>
+        Select an Element
+      </h2>
+      <div className="platform-grid" style={gridStyle}>
         {elements.map(({ id, icon: Icon, label }) => {
           const isSelected = selectedElement === id;
           return (
             <button
               key={id}
+              className="platform-card"
               onClick={() => setSelectedElement(id)}
               style={{
                 padding: "24px",
@@ -1142,112 +1199,261 @@ export default function SecureRAGHome() {
 
   // Main application - new step-based flow
   return (
-    <div className="min-h-screen transition-colors duration-300 bg-gray-50">
-      <div className="max-w-4xl mx-auto px-6 py-8">
-        <Header user={user} signOut={signOut} />
+    <>
+      {/* Global Responsive CSS */}
+      <style jsx global>{`
+        * {
+          box-sizing: border-box;
+        }
 
-        {/* Mode Selection Step */}
-        {currentStep === 0 && (
-          <div style={{ textAlign: "center" }}>
-            <h1
-              style={{
-                fontSize: "2.25rem",
-                fontWeight: "bold",
-                marginBottom: "0.5rem",
-                transition: "color 0.3s",
-                color: "#111827",
-              }}
-            >
-              Welcome to RAG.CX
-            </h1>
-            <p
-              style={{
-                fontSize: "1.125rem",
-                marginBottom: "3rem",
-                transition: "color 0.3s",
-                color: "#4B5563",
-              }}
-            >
-              Choose your working mode
-            </p>
+        .main-container {
+          min-height: 100vh;
+          transition: all 0.3s ease;
+          background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        }
 
-            <div
-              style={{
-                borderRadius: "1rem",
-                boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
-                padding: "2rem",
-                transition: "background-color 0.3s",
-                backgroundColor: "#fff",
-              }}
-            >
-              <h2
+        .content-wrapper {
+          max-width: 1024px;
+          margin: 0 auto;
+          padding: 32px 24px;
+        }
+
+        @media (max-width: 768px) {
+          .content-wrapper {
+            padding: 16px 16px;
+            max-width: 100%;
+          }
+
+          .mode-title {
+            font-size: 1.75rem !important;
+            line-height: 2rem !important;
+            margin-bottom: 16px !important;
+          }
+
+          .mode-subtitle {
+            font-size: 0.875rem !important;
+            margin-bottom: 24px !important;
+            padding: 0 8px;
+          }
+
+          .mode-buttons {
+            flex-direction: column !important;
+            gap: 12px !important;
+            padding: 0 8px;
+          }
+
+          .mode-button {
+            width: 100% !important;
+            padding: 16px !important;
+            font-size: 14px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            text-align: center !important;
+            min-height: 120px !important;
+            justify-content: center !important;
+          }
+
+          .step-title {
+            font-size: 1.5rem !important;
+            line-height: 2rem !important;
+          }
+
+          .step-subtitle {
+            font-size: 0.875rem !important;
+            padding: 0 16px;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .content-wrapper {
+            padding: 12px 12px;
+          }
+
+          .mode-title {
+            font-size: 1.5rem !important;
+            line-height: 1.75rem !important;
+          }
+
+          .mode-subtitle {
+            font-size: 0.8rem !important;
+            padding: 0 4px;
+          }
+
+          .mode-button {
+            padding: 14px !important;
+            font-size: 13px !important;
+          }
+
+          .step-title {
+            font-size: 1.25rem !important;
+          }
+
+          .step-subtitle {
+            font-size: 0.8rem !important;
+            padding: 0 8px;
+          }
+        }
+
+        /* Modal Responsive Styles */
+        @media (max-width: 768px) {
+          .modal-container {
+            padding: 16px !important;
+          }
+
+          .modal-content {
+            width: 95% !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 20px !important;
+          }
+
+          .modal-title {
+            font-size: 1.25rem !important;
+          }
+
+          .org-button {
+            padding: 12px !important;
+            font-size: 14px !important;
+          }
+
+          .org-name {
+            font-size: 14px !important;
+          }
+
+          .org-description {
+            font-size: 12px !important;
+          }
+
+          /* Platform Grid Responsive */
+          .platform-grid {
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
+            max-width: 400px !important;
+            margin: 0 auto !important;
+          }
+
+          .platform-card {
+            width: 100% !important;
+            padding: 20px !important;
+            min-height: 120px !important;
+          }
+
+          .platform-title {
+            font-size: 1.5rem !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .modal-content {
+            width: 98% !important;
+            padding: 16px !important;
+          }
+
+          .modal-title {
+            font-size: 1.125rem !important;
+          }
+
+          .org-button {
+            padding: 10px !important;
+            font-size: 13px !important;
+          }
+
+          /* Platform Grid Mobile */
+          .platform-grid {
+            gap: 12px !important;
+            max-width: 300px !important;
+          }
+
+          .platform-card {
+            padding: 16px !important;
+            min-height: 100px !important;
+          }
+
+          .platform-title {
+            font-size: 1.25rem !important;
+          }
+
+          /* File Upload Responsive */
+          .upload-area {
+            padding: 20px !important;
+            margin: 0 8px !important;
+          }
+
+          .upload-title {
+            font-size: 20px !important;
+            margin-bottom: 16px !important;
+          }
+        }
+      `}</style>
+
+      <div className="main-container">
+        <div className="content-wrapper">
+          <Header user={user} signOut={signOut} />
+
+          {/* Mode Selection Step */}
+          {currentStep === 0 && (
+            <div style={{ textAlign: "center" }}>
+              <h1
+                className="mode-title"
                 style={{
-                  fontSize: "1.5rem",
-                  fontWeight: "600",
-                  textAlign: "center",
-                  marginBottom: "2rem",
+                  fontSize: "2.25rem",
+                  fontWeight: "bold",
+                  marginBottom: "0.5rem",
                   transition: "color 0.3s",
                   color: "#111827",
                 }}
               >
-                Select Mode
-              </h2>
+                Welcome to RAG.CX
+              </h1>
+              <p
+                className="mode-subtitle"
+                style={{
+                  fontSize: "1.125rem",
+                  marginBottom: "3rem",
+                  transition: "color 0.3s",
+                  color: "#4B5563",
+                }}
+              >
+                Choose your working mode
+              </p>
 
               <div
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "1.5rem",
+                  borderRadius: "1rem",
+                  boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+                  padding: "2rem",
+                  transition: "background-color 0.3s",
+                  backgroundColor: "#fff",
                 }}
               >
-                {/* Personal Mode */}
-                <button
-                  onClick={() => handleModeSelection("personal")}
+                <h2
                   style={{
-                    padding: "2rem",
-                    borderRadius: "0.75rem",
-                    border: "2px solid",
-                    borderColor: "#E5E7EB",
-                    backgroundColor: "#fff",
-                    color: "#374151",
-                    transition: "all 0.2s",
-                    cursor: "pointer",
+                    fontSize: "1.5rem",
+                    fontWeight: "600",
+                    textAlign: "center",
+                    marginBottom: "2rem",
+                    transition: "color 0.3s",
+                    color: "#111827",
                   }}
-                  onMouseOver={(e) =>
-                    (e.currentTarget.style.borderColor = "#A259FF")
-                  }
-                  onMouseOut={(e) =>
-                    (e.currentTarget.style.borderColor = "#E5E7EB")
-                  }
                 >
-                  <div style={{ fontSize: "2.25rem", marginBottom: "1rem" }}>
-                    👤
-                  </div>
-                  <h3
-                    style={{
-                      fontSize: "1.25rem",
-                      fontWeight: "600",
-                      marginBottom: "0.5rem",
-                    }}
-                  >
-                    Personal Mode
-                  </h3>
-                  <p
-                    style={{
-                      fontSize: "0.875rem",
-                      color: "#4B5563",
-                    }}
-                  >
-                    Upload and manage your personal documents
-                  </p>
-                </button>
+                  Select Mode
+                </h2>
 
-                {/* Organization Mode */}
-                <div>
+                <div
+                  className="mode-buttons"
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "1.5rem",
+                    alignItems: "stretch",
+                  }}
+                >
+                  {/* Personal Mode */}
                   <button
-                    onClick={() => setShowMemberModal(true)}
+                    className="mode-button"
+                    onClick={() => handleModeSelection("personal")}
                     style={{
-                      width: "100%",
                       padding: "2rem",
                       borderRadius: "0.75rem",
                       border: "2px solid",
@@ -1256,6 +1462,61 @@ export default function SecureRAGHome() {
                       color: "#374151",
                       transition: "all 0.2s",
                       cursor: "pointer",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      textAlign: "center",
+                      minHeight: "200px",
+                      justifyContent: "center",
+                    }}
+                    onMouseOver={(e) =>
+                      (e.currentTarget.style.borderColor = "#A259FF")
+                    }
+                    onMouseOut={(e) =>
+                      (e.currentTarget.style.borderColor = "#E5E7EB")
+                    }
+                  >
+                    <div style={{ fontSize: "2.25rem", marginBottom: "1rem" }}>
+                      👤
+                    </div>
+                    <h3
+                      style={{
+                        fontSize: "1.25rem",
+                        fontWeight: "600",
+                        marginBottom: "0.5rem",
+                      }}
+                    >
+                      Personal Mode
+                    </h3>
+                    <p
+                      style={{
+                        fontSize: "0.875rem",
+                        color: "#4B5563",
+                      }}
+                    >
+                      Upload and manage your personal documents
+                    </p>
+                  </button>
+
+                  {/* Organization Mode */}
+                  <button
+                    className="mode-button"
+                    onClick={() => setShowMemberModal(true)}
+                    style={{
+                      padding: "2rem",
+                      borderRadius: "0.75rem",
+                      border: "2px solid",
+                      borderColor: "#E5E7EB",
+                      backgroundColor: "#fff",
+                      color: "#374151",
+                      transition: "all 0.2s",
+                      cursor: "pointer",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      textAlign: "center",
+                      minHeight: "200px",
+                      justifyContent: "center",
                     }}
                     onMouseOver={(e) =>
                       (e.currentTarget.style.borderColor = "#A259FF")
@@ -1289,6 +1550,7 @@ export default function SecureRAGHome() {
                   {/* Organization Selection Modal */}
                   {showMemberModal && (
                     <div
+                      className="modal-container"
                       style={{
                         position: "fixed",
                         inset: 0,
@@ -1297,9 +1559,11 @@ export default function SecureRAGHome() {
                         alignItems: "center",
                         justifyContent: "center",
                         zIndex: 50,
+                        padding: "1rem",
                       }}
                     >
                       <div
+                        className="modal-content"
                         style={{
                           padding: "1.5rem",
                           borderRadius: "0.5rem",
@@ -1310,6 +1574,7 @@ export default function SecureRAGHome() {
                         }}
                       >
                         <h3
+                          className="modal-title"
                           style={{
                             fontSize: "1.125rem",
                             fontWeight: "600",
@@ -1324,6 +1589,7 @@ export default function SecureRAGHome() {
                           {organizations.map((org) => (
                             <button
                               key={org.id}
+                              className="org-button"
                               onClick={() => {
                                 setSelectedOrgForMembers(org);
                                 setShowMemberModal(false);
@@ -1351,10 +1617,14 @@ export default function SecureRAGHome() {
                                 (e.currentTarget.style.backgroundColor = "#fff")
                               }
                             >
-                              <div style={{ fontWeight: "500" }}>
+                              <div
+                                className="org-name"
+                                style={{ fontWeight: "500" }}
+                              >
                                 {org.name}
                               </div>
                               <div
+                                className="org-description"
                                 style={{
                                   fontSize: "0.875rem",
                                   color: "#4B5563",
@@ -1418,388 +1688,395 @@ export default function SecureRAGHome() {
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Member Management Modal */}
-        {showMemberManagement && (
-          <div
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0, 0, 0, 0.5)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 1000,
-            }}
-          >
+          {/* Member Management Modal */}
+          {showMemberManagement && (
             <div
               style={{
-                backgroundColor: "#fff",
-                borderRadius: "0.5rem",
-                padding: "2rem",
-                width: "90%",
-                maxWidth: "600px",
-                maxHeight: "80vh",
-                overflow: "auto",
+                position: "fixed",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: "rgba(0, 0, 0, 0.5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 1000,
               }}
             >
-              <div style={{ marginBottom: "1.5rem" }}>
-                <h2
-                  style={{
-                    fontSize: "1.5rem",
-                    fontWeight: "600",
-                    color: "#111827",
-                    marginBottom: "0.5rem",
-                  }}
-                >
-                  Manage Members - {selectedOrgForMembers?.name}
-                </h2>
-                <p style={{ color: "#6B7280", fontSize: "0.875rem" }}>
-                  Add members and assign roles for this organization
-                </p>
-              </div>
-
-              {/* Current Members */}
-              <div style={{ marginBottom: "2rem" }}>
-                <h3
-                  style={{
-                    fontSize: "1.125rem",
-                    fontWeight: "500",
-                    color: "#374151",
-                    marginBottom: "1rem",
-                  }}
-                >
-                  Current Members
-                </h3>
-                {members.length === 0 ? (
-                  <p style={{ color: "#6B7280", fontStyle: "italic" }}>
-                    No members added yet
+              <div
+                style={{
+                  backgroundColor: "#fff",
+                  borderRadius: "0.5rem",
+                  padding: "2rem",
+                  width: "90%",
+                  maxWidth: "600px",
+                  maxHeight: "80vh",
+                  overflow: "auto",
+                }}
+              >
+                <div style={{ marginBottom: "1.5rem" }}>
+                  <h2
+                    style={{
+                      fontSize: "1.5rem",
+                      fontWeight: "600",
+                      color: "#111827",
+                      marginBottom: "0.5rem",
+                    }}
+                  >
+                    Manage Members - {selectedOrgForMembers?.name}
+                  </h2>
+                  <p style={{ color: "#6B7280", fontSize: "0.875rem" }}>
+                    Add members and assign roles for this organization
                   </p>
-                ) : (
+                </div>
+
+                {/* Current Members */}
+                <div style={{ marginBottom: "2rem" }}>
+                  <h3
+                    style={{
+                      fontSize: "1.125rem",
+                      fontWeight: "500",
+                      color: "#374151",
+                      marginBottom: "1rem",
+                    }}
+                  >
+                    Current Members
+                  </h3>
+                  {members.length === 0 ? (
+                    <p style={{ color: "#6B7280", fontStyle: "italic" }}>
+                      No members added yet
+                    </p>
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "0.5rem",
+                      }}
+                    >
+                      {members.map((member, index) => (
+                        <div
+                          key={index}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            padding: "0.75rem",
+                            border: "1px solid #E5E7EB",
+                            borderRadius: "0.375rem",
+                            backgroundColor: "#F9FAFB",
+                          }}
+                        >
+                          <div>
+                            <div
+                              style={{ fontWeight: "500", color: "#111827" }}
+                            >
+                              {member.email}
+                            </div>
+                            <div
+                              style={{ fontSize: "0.875rem", color: "#6B7280" }}
+                            >
+                              {member.role}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() =>
+                              removeMemberFromOrganization(
+                                selectedOrgForMembers.id,
+                                member.user_id
+                              )
+                            }
+                            style={{
+                              backgroundColor: "#EF4444",
+                              color: "#fff",
+                              padding: "0.25rem 0.5rem",
+                              borderRadius: "0.25rem",
+                              border: "none",
+                              cursor: "pointer",
+                              fontSize: "0.75rem",
+                            }}
+                            onMouseOver={(e) =>
+                              (e.currentTarget.style.backgroundColor =
+                                "#DC2626")
+                            }
+                            onMouseOut={(e) =>
+                              (e.currentTarget.style.backgroundColor =
+                                "#EF4444")
+                            }
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Add New Member */}
+                <div style={{ marginBottom: "2rem" }}>
+                  <h3
+                    style={{
+                      fontSize: "1.125rem",
+                      fontWeight: "500",
+                      color: "#374151",
+                      marginBottom: "1rem",
+                    }}
+                  >
+                    Add New Member
+                  </h3>
                   <div
                     style={{
                       display: "flex",
                       flexDirection: "column",
-                      gap: "0.5rem",
+                      gap: "1rem",
                     }}
                   >
-                    {members.map((member, index) => (
-                      <div
-                        key={index}
+                    <div>
+                      <label
                         style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          padding: "0.75rem",
-                          border: "1px solid #E5E7EB",
-                          borderRadius: "0.375rem",
-                          backgroundColor: "#F9FAFB",
+                          display: "block",
+                          fontSize: "0.875rem",
+                          fontWeight: "500",
+                          color: "#374151",
+                          marginBottom: "0.25rem",
                         }}
                       >
-                        <div>
-                          <div style={{ fontWeight: "500", color: "#111827" }}>
-                            {member.email}
-                          </div>
-                          <div
-                            style={{ fontSize: "0.875rem", color: "#6B7280" }}
-                          >
-                            {member.role}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() =>
-                            removeMemberFromOrganization(
-                              selectedOrgForMembers.id,
-                              member.user_id
-                            )
-                          }
-                          style={{
-                            backgroundColor: "#EF4444",
-                            color: "#fff",
-                            padding: "0.25rem 0.5rem",
-                            borderRadius: "0.25rem",
-                            border: "none",
-                            cursor: "pointer",
-                            fontSize: "0.75rem",
-                          }}
-                          onMouseOver={(e) =>
-                            (e.currentTarget.style.backgroundColor = "#DC2626")
-                          }
-                          onMouseOut={(e) =>
-                            (e.currentTarget.style.backgroundColor = "#EF4444")
-                          }
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
+                        Email Address
+                      </label>
+                      <input
+                        type="email"
+                        value={newMemberEmail}
+                        onChange={(e) => setNewMemberEmail(e.target.value)}
+                        placeholder="Enter member email"
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem",
+                          border: "1px solid #D1D5DB",
+                          borderRadius: "0.375rem",
+                          fontSize: "0.875rem",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: "0.875rem",
+                          fontWeight: "500",
+                          color: "#374151",
+                          marginBottom: "0.25rem",
+                        }}
+                      >
+                        Role
+                      </label>
+                      <select
+                        value={newMemberRole}
+                        onChange={(e) => setNewMemberRole(e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem",
+                          border: "1px solid #D1D5DB",
+                          borderRadius: "0.375rem",
+                          fontSize: "0.875rem",
+                        }}
+                      >
+                        <option value="member">Member</option>
+                        <option value="admin">Admin</option>
+                        <option value="editor">Editor</option>
+                        <option value="viewer">Viewer</option>
+                      </select>
+                    </div>
+                    <button
+                      onClick={() =>
+                        addMemberToOrganization(
+                          selectedOrgForMembers.id,
+                          newMemberEmail,
+                          newMemberRole
+                        )
+                      }
+                      disabled={!newMemberEmail?.trim()}
+                      style={{
+                        backgroundColor: newMemberEmail?.trim()
+                          ? "#A259FF"
+                          : "#D1D5DB",
+                        color: "#fff",
+                        padding: "0.5rem 1rem",
+                        borderRadius: "0.375rem",
+                        border: "none",
+                        cursor: newMemberEmail?.trim()
+                          ? "pointer"
+                          : "not-allowed",
+                        fontSize: "0.875rem",
+                        fontWeight: "500",
+                      }}
+                      onMouseOver={(e) => {
+                        if (newMemberEmail?.trim()) {
+                          e.currentTarget.style.backgroundColor = "#7C3AED";
+                        }
+                      }}
+                      onMouseOut={(e) => {
+                        if (newMemberEmail?.trim()) {
+                          e.currentTarget.style.backgroundColor = "#A259FF";
+                        }
+                      }}
+                    >
+                      Add Member
+                    </button>
                   </div>
-                )}
-              </div>
+                </div>
 
-              {/* Add New Member */}
-              <div style={{ marginBottom: "2rem" }}>
-                <h3
-                  style={{
-                    fontSize: "1.125rem",
-                    fontWeight: "500",
-                    color: "#374151",
-                    marginBottom: "1rem",
-                  }}
-                >
-                  Add New Member
-                </h3>
+                {/* Action Buttons */}
                 <div
                   style={{
                     display: "flex",
-                    flexDirection: "column",
-                    gap: "1rem",
+                    gap: "0.5rem",
+                    justifyContent: "flex-end",
                   }}
                 >
-                  <div>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "0.875rem",
-                        fontWeight: "500",
-                        color: "#374151",
-                        marginBottom: "0.25rem",
-                      }}
-                    >
-                      Email Address
-                    </label>
-                    <input
-                      type="email"
-                      value={newMemberEmail}
-                      onChange={(e) => setNewMemberEmail(e.target.value)}
-                      placeholder="Enter member email"
-                      style={{
-                        width: "100%",
-                        padding: "0.5rem",
-                        border: "1px solid #D1D5DB",
-                        borderRadius: "0.375rem",
-                        fontSize: "0.875rem",
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "0.875rem",
-                        fontWeight: "500",
-                        color: "#374151",
-                        marginBottom: "0.25rem",
-                      }}
-                    >
-                      Role
-                    </label>
-                    <select
-                      value={newMemberRole}
-                      onChange={(e) => setNewMemberRole(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "0.5rem",
-                        border: "1px solid #D1D5DB",
-                        borderRadius: "0.375rem",
-                        fontSize: "0.875rem",
-                      }}
-                    >
-                      <option value="member">Member</option>
-                      <option value="admin">Admin</option>
-                      <option value="editor">Editor</option>
-                      <option value="viewer">Viewer</option>
-                    </select>
-                  </div>
                   <button
-                    onClick={() =>
-                      addMemberToOrganization(
-                        selectedOrgForMembers.id,
-                        newMemberEmail,
-                        newMemberRole
-                      )
-                    }
-                    disabled={!newMemberEmail?.trim()}
+                    onClick={() => setShowMemberManagement(false)}
                     style={{
-                      backgroundColor: newMemberEmail?.trim()
-                        ? "#A259FF"
-                        : "#D1D5DB",
+                      padding: "0.5rem 1rem",
+                      borderRadius: "0.375rem",
+                      border: "1px solid #D1D5DB",
+                      backgroundColor: "#fff",
+                      color: "#374151",
+                      cursor: "pointer",
+                      fontSize: "0.875rem",
+                    }}
+                    onMouseOver={(e) =>
+                      (e.currentTarget.style.backgroundColor = "#F9FAFB")
+                    }
+                    onMouseOut={(e) =>
+                      (e.currentTarget.style.backgroundColor = "#fff")
+                    }
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleModeSelection(
+                        "organization",
+                        selectedOrgForMembers.id
+                      );
+                      setShowMemberManagement(false);
+                    }}
+                    style={{
+                      backgroundColor: "#A259FF",
                       color: "#fff",
                       padding: "0.5rem 1rem",
                       borderRadius: "0.375rem",
                       border: "none",
-                      cursor: newMemberEmail?.trim()
-                        ? "pointer"
-                        : "not-allowed",
+                      cursor: "pointer",
                       fontSize: "0.875rem",
                       fontWeight: "500",
                     }}
-                    onMouseOver={(e) => {
-                      if (newMemberEmail?.trim()) {
-                        e.currentTarget.style.backgroundColor = "#7C3AED";
-                      }
-                    }}
-                    onMouseOut={(e) => {
-                      if (newMemberEmail?.trim()) {
-                        e.currentTarget.style.backgroundColor = "#A259FF";
-                      }
-                    }}
+                    onMouseOver={(e) =>
+                      (e.currentTarget.style.backgroundColor = "#7C3AED")
+                    }
+                    onMouseOut={(e) =>
+                      (e.currentTarget.style.backgroundColor = "#A259FF")
+                    }
                   >
-                    Add Member
+                    Continue to Upload
                   </button>
                 </div>
               </div>
-
-              {/* Action Buttons */}
-              <div
-                style={{
-                  display: "flex",
-                  gap: "0.5rem",
-                  justifyContent: "flex-end",
-                }}
-              >
-                <button
-                  onClick={() => setShowMemberManagement(false)}
-                  style={{
-                    padding: "0.5rem 1rem",
-                    borderRadius: "0.375rem",
-                    border: "1px solid #D1D5DB",
-                    backgroundColor: "#fff",
-                    color: "#374151",
-                    cursor: "pointer",
-                    fontSize: "0.875rem",
-                  }}
-                  onMouseOver={(e) =>
-                    (e.currentTarget.style.backgroundColor = "#F9FAFB")
-                  }
-                  onMouseOut={(e) =>
-                    (e.currentTarget.style.backgroundColor = "#fff")
-                  }
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    handleModeSelection(
-                      "organization",
-                      selectedOrgForMembers.id
-                    );
-                    setShowMemberManagement(false);
-                  }}
-                  style={{
-                    backgroundColor: "#A259FF",
-                    color: "#fff",
-                    padding: "0.5rem 1rem",
-                    borderRadius: "0.375rem",
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: "0.875rem",
-                    fontWeight: "500",
-                  }}
-                  onMouseOver={(e) =>
-                    (e.currentTarget.style.backgroundColor = "#7C3AED")
-                  }
-                  onMouseOut={(e) =>
-                    (e.currentTarget.style.backgroundColor = "#A259FF")
-                  }
-                >
-                  Continue to Upload
-                </button>
-              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Step Flow with Header */}
-        {currentStep > 0 && (
-          <>
-            <StepHeader currentStep={currentStep} />
+          {/* Step Flow with Header */}
+          {currentStep > 0 && (
+            <>
+              <StepHeader currentStep={currentStep} />
 
-            <div className="relative overflow-hidden">
-              <div
-                className="flex transition-transform duration-500 ease-in-out"
-                style={{
-                  transform: `translateX(-${(currentStep - 1) * 100}%)`,
-                }}
-              >
-                {/* File Upload Step */}
-                <div className="w-full flex-shrink-0">
-                  <FileUploadStep
-                    isDragging={isDragging}
-                    uploadedFile={uploadedFile}
-                    handleDragOver={handleDragOver}
-                    handleDragLeave={handleDragLeave}
-                    handleDrop={handleDrop}
-                    handleFileInput={handleFileInput}
-                    formatFileSize={formatFileSize}
-                  />
+              <div className="relative overflow-hidden">
+                <div
+                  className="flex transition-transform duration-500 ease-in-out"
+                  style={{
+                    transform: `translateX(-${(currentStep - 1) * 100}%)`,
+                  }}
+                >
+                  {/* File Upload Step */}
+                  <div className="w-full flex-shrink-0">
+                    <FileUploadStep
+                      isDragging={isDragging}
+                      uploadedFile={uploadedFile}
+                      handleDragOver={handleDragOver}
+                      handleDragLeave={handleDragLeave}
+                      handleDrop={handleDrop}
+                      handleFileInput={handleFileInput}
+                      formatFileSize={formatFileSize}
+                    />
 
-                  {fileUploading && (
-                    <div className="mt-6 p-4 rounded-lg text-center bg-blue-50 text-blue-800">
-                      Uploading document...
-                    </div>
-                  )}
+                    {fileUploading && (
+                      <div className="mt-6 p-4 rounded-lg text-center bg-blue-50 text-blue-800">
+                        Uploading document...
+                      </div>
+                    )}
 
-                  {uploadSuccess && (
-                    <div
-  style={{
-    marginTop: "24px",
-    padding: "16px",
-    borderRadius: "12px",
-    textAlign: "center",
-    backgroundColor: "#ECFDF5", // soft green
-    color: "#065F46", // dark green text
-    fontSize: "16px",
-    fontWeight: "500",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "8px",
-  }}
->
-  <span style={{ fontSize: "20px" }}>✅</span>
-  <span>File has been uploaded successfully! Moving to next step...</span>
-</div>
-                  )}
-                </div>
+                    {uploadSuccess && (
+                      <div
+                        style={{
+                          marginTop: "24px",
+                          padding: "16px",
+                          borderRadius: "12px",
+                          textAlign: "center",
+                          backgroundColor: "#ECFDF5", // soft green
+                          color: "#065F46", // dark green text
+                          fontSize: "16px",
+                          fontWeight: "500",
+                          boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "8px",
+                        }}
+                      >
+                        <span style={{ fontSize: "20px" }}>✅</span>
+                        <span>
+                          File has been uploaded successfully! Moving to next
+                          step...
+                        </span>
+                      </div>
+                    )}
+                  </div>
 
-                {/* Platform Selection Step */}
-                <div className="w-full flex-shrink-0">
-                  <PlatformStep
-                    selectedPlatform={selectedPlatform}
-                    setSelectedPlatform={handlePlatformSelection}
-                  />
-                </div>
+                  {/* Platform Selection Step */}
+                  <div className="w-full flex-shrink-0">
+                    <PlatformStep
+                      selectedPlatform={selectedPlatform}
+                      setSelectedPlatform={handlePlatformSelection}
+                    />
+                  </div>
 
-                {/* Element Selection Step */}
-                <div className="w-full flex-shrink-0">
-                  <ElementStep
-                    selectedElement={selectedElement}
-                    setSelectedElement={handleElementSelection}
-                  />
-                </div>
+                  {/* Element Selection Step */}
+                  <div className="w-full flex-shrink-0">
+                    <ElementStep
+                      selectedElement={selectedElement}
+                      setSelectedElement={handleElementSelection}
+                    />
+                  </div>
 
-                {/* Script Generation Step */}
-                <div className="w-full flex-shrink-0">
-                  <ScriptStep
-                    selectedPlatform={selectedPlatform}
-                    selectedElement={selectedElement}
-                    generateScript={generateScript}
-                    copyScript={copyScript}
-                    scriptCopied={scriptCopied}
-                  />
+                  {/* Script Generation Step */}
+                  <div className="w-full flex-shrink-0">
+                    <ScriptStep
+                      selectedPlatform={selectedPlatform}
+                      selectedElement={selectedElement}
+                      generateScript={generateScript}
+                      copyScript={copyScript}
+                      scriptCopied={scriptCopied}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
