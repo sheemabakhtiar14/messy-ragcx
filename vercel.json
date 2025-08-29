@@ -1,0 +1,39 @@
+{
+  "version": 2,
+  "name": "rag-application-production",
+  "builds": [
+    {
+      "src": "next.config.ts",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1",
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization"
+      }
+    }
+  ],
+  "functions": {
+    "pages/api/ask-user.js": {
+      "maxDuration": 30
+    },
+    "pages/api/ask-public.js": {
+      "maxDuration": 30
+    },
+    "pages/api/save.js": {
+      "maxDuration": 60
+    }
+  },
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "regions": ["iad1"],
+  "github": {
+    "silent": true
+  }
+}

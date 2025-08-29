@@ -186,8 +186,8 @@ const StepHeader = ({ currentStep }) => {
                   backgroundColor: isActive
                     ? "#A259FF" // purple for active
                     : isCompleted
-                    ? "#22C55E" // green for completed
-                    : "#E5E7EB", // gray for pending
+                      ? "#22C55E" // green for completed
+                      : "#E5E7EB", // gray for pending
                   color: isActive || isCompleted ? "#fff" : "#6B7280",
                 }}
               >
@@ -680,18 +680,30 @@ const ScriptStep = ({ selectedPlatform, selectedElement, generateScript }) => {
             lineHeight: "1.6",
           }}
         >
-          <h3 style={{ margin: "0 0 12px 0", fontSize: "16px", fontWeight: "600" }}>
+          <h3
+            style={{
+              margin: "0 0 12px 0",
+              fontSize: "16px",
+              fontWeight: "600",
+            }}
+          >
             🚀 How to use your AI Agent:
           </h3>
           <ol style={{ margin: "0 0 12px 0", paddingLeft: "20px" }}>
             <li>Copy the script above</li>
-            <li>Paste it as a script tag in any website: <code>&lt;script&gt;[paste here]&lt;/script&gt;</code></li>
+            <li>
+              Paste it as a script tag in any website:{" "}
+              <code>&lt;script&gt;[paste here]&lt;/script&gt;</code>
+            </li>
             <li>The AI chat button will appear in the bottom-right corner</li>
-            <li>Users can click it to ask questions about your uploaded documents</li>
+            <li>
+              Users can click it to ask questions about your uploaded documents
+            </li>
           </ol>
           <p style={{ margin: "0", fontSize: "13px", fontStyle: "italic" }}>
-            <strong>Note:</strong> For the AI to work, users need to be authenticated with your RAG system. 
-            The current version shows authentication prompts for unauthenticated users.
+            <strong>Note:</strong> For the AI to work, users need to be
+            authenticated with your RAG system. The current version shows
+            authentication prompts for unauthenticated users.
           </p>
         </div>
       )}
@@ -1068,7 +1080,19 @@ export default function SecureRAGHome() {
   const generateScript = () => {
     if (!selectedPlatform || !selectedElement) return "";
 
-    // Generate dummy scripts based on selected element
+    // Get production API URL based on environment
+    const getApiUrl = () => {
+      if (typeof window !== "undefined") {
+        // Client-side: Use current origin for production, or localhost for development
+        return window.location.hostname === "localhost"
+          ? "http://localhost:3000"
+          : window.location.origin;
+      }
+      // Server-side fallback
+      return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    };
+
+    // Generate production-ready scripts based on selected element
     const scripts = {
       search: `
         (function() {
@@ -1095,51 +1119,86 @@ export default function SecureRAGHome() {
       `,
       "ai-agent": `
 (function() {
-  // Configuration
+  // Production Configuration - Dynamic API URL Detection
   var config = {
-    apiUrl: '${window.location.origin}', // Your domain
+    apiUrl: '${getApiUrl()}',
     primaryColor: '#A259FF',
     hoverColor: '#7C3AED',
     textColor: '#333',
-    backgroundColor: '#fff'
+    backgroundColor: '#fff',
+    userId: '${user?.id || "anonymous"}',
+    userToken: null // Will be set dynamically
   };
+
+  // Authentication helper - Get user token from Supabase
+  function getUserToken() {
+    try {
+      // Try to get token from localStorage (Supabase stores session here)
+      const session = JSON.parse(localStorage.getItem('supabase.auth.token') || '{}');
+      if (session && session.access_token) {
+        return session.access_token;
+      }
+      
+      // Alternative: Try to get from Supabase client if available
+      if (typeof window !== 'undefined' && window.supabase) {
+        return window.supabase.auth.session()?.access_token;
+      }
+      
+      return null;
+    } catch (error) {
+      console.warn('Failed to get user token:', error);
+      return null;
+    }
+  }
+
+  // Initialize authentication token
+  config.userToken = getUserToken();
 
   // Create AI Agent Container
   var aiContainer = document.createElement('div');
-  aiContainer.id = 'rag-ai-agent';
+  aiContainer.id = 'rag-ai-agent-production';
   aiContainer.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:99999;font-family:Arial,sans-serif;';
 
   // Chat Widget (initially hidden)
   var chatWidget = document.createElement('div');
-  chatWidget.style.cssText = 'display:none;width:350px;height:500px;background:white;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,0.2);overflow:hidden;border:1px solid #e5e7eb;';
+  chatWidget.style.cssText = 'display:none;width:350px;height:500px;background:white;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,0.2);overflow:hidden;border:1px solid #e5e7eb;flex-direction:column;';
 
   // Chat Header
   var chatHeader = document.createElement('div');
-  chatHeader.style.cssText = 'background:' + config.primaryColor + ';color:white;padding:16px;display:flex;justify-content:space-between;align-items:center;';
-  chatHeader.innerHTML = '<div><strong>🤖 AI Assistant</strong><br><small>Ask me anything about your documents</small></div><button id="close-chat" style="background:none;border:none;color:white;font-size:20px;cursor:pointer;">×</button>';
+  chatHeader.style.cssText = 'background:' + config.primaryColor + ';color:white;padding:16px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;';
+  
+  var headerContent = document.createElement('div');
+  headerContent.innerHTML = '<strong>🤖 Your Personal AI</strong><br><small>Searching only YOUR documents</small>';
+  
+  var closeButton = document.createElement('button');
+  closeButton.innerHTML = '×';
+  closeButton.style.cssText = 'background:none;border:none;color:white;font-size:20px;cursor:pointer;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;';
+  
+  chatHeader.appendChild(headerContent);
+  chatHeader.appendChild(closeButton);
 
   // Chat Messages Container
   var messagesContainer = document.createElement('div');
-  messagesContainer.style.cssText = 'height:360px;overflow-y:auto;padding:16px;background:#f9f9f9;';
+  messagesContainer.style.cssText = 'height:320px;overflow-y:auto;padding:16px;background:#f9f9f9;flex:1;';
   
   // Initial welcome message
   var welcomeMsg = document.createElement('div');
   welcomeMsg.style.cssText = 'background:white;padding:12px;border-radius:12px;margin-bottom:12px;box-shadow:0 2px 4px rgba(0,0,0,0.1);';
-  welcomeMsg.innerHTML = '<strong>AI Assistant:</strong><br>Hello! I can help you find information from your documents. What would you like to know?';
+  welcomeMsg.innerHTML = '<strong>Your Personal AI:</strong><br>Hello! I can help you find information from YOUR uploaded documents. What would you like to know?';
   messagesContainer.appendChild(welcomeMsg);
 
   // Chat Input Container
   var inputContainer = document.createElement('div');
-  inputContainer.style.cssText = 'padding:16px;background:white;border-top:1px solid #e5e7eb;display:flex;gap:8px;';
+  inputContainer.style.cssText = 'padding:16px;background:white;border-top:1px solid #e5e7eb;display:flex;gap:8px;min-height:70px;box-sizing:border-box;flex-shrink:0;';
 
   var chatInput = document.createElement('input');
   chatInput.type = 'text';
-  chatInput.placeholder = 'Type your question...';
-  chatInput.style.cssText = 'flex:1;padding:10px;border:1px solid #d1d5db;border-radius:8px;outline:none;font-size:14px;';
+  chatInput.placeholder = 'Ask about your documents...';
+  chatInput.style.cssText = 'flex:1;padding:12px;border:1px solid #d1d5db;border-radius:8px;outline:none;font-size:14px;height:40px;box-sizing:border-box;background:white;';
 
   var sendButton = document.createElement('button');
   sendButton.innerHTML = '➤';
-  sendButton.style.cssText = 'background:' + config.primaryColor + ';color:white;border:none;border-radius:8px;padding:10px 16px;cursor:pointer;font-size:16px;';
+  sendButton.style.cssText = 'background:' + config.primaryColor + ';color:white;border:none;border-radius:8px;padding:12px 16px;cursor:pointer;font-size:16px;height:40px;min-width:50px;';
 
   inputContainer.appendChild(chatInput);
   inputContainer.appendChild(sendButton);
@@ -1163,21 +1222,26 @@ export default function SecureRAGHome() {
   var isOpen = false;
   var isLoading = false;
 
-  // Chat toggle function
+  // Chat functions
   function toggleChat() {
     isOpen = !isOpen;
-    chatWidget.style.display = isOpen ? 'block' : 'none';
+    chatWidget.style.display = isOpen ? 'flex' : 'none';
     chatButton.style.transform = isOpen ? 'scale(0.9)' : 'scale(1)';
+    
+    if (isOpen) {
+      setTimeout(function() {
+        chatInput.focus();
+      }, 100);
+    }
   }
 
-  // Add message to chat
   function addMessage(content, isUser = false, isError = false) {
     var messageDiv = document.createElement('div');
     var bgColor = isUser ? config.primaryColor : (isError ? '#ef4444' : 'white');
     var textColor = isUser ? 'white' : (isError ? 'white' : config.textColor);
     
     messageDiv.style.cssText = 'background:' + bgColor + ';color:' + textColor + ';padding:12px;border-radius:12px;margin-bottom:12px;box-shadow:0 2px 4px rgba(0,0,0,0.1);word-wrap:break-word;';
-    messageDiv.innerHTML = (isUser ? '<strong>You:</strong><br>' : (isError ? '<strong>Error:</strong><br>' : '<strong>AI Assistant:</strong><br>')) + content;
+    messageDiv.innerHTML = (isUser ? '<strong>You:</strong><br>' : (isError ? '<strong>Error:</strong><br>' : '<strong>Your AI:</strong><br>')) + content;
     
     messagesContainer.appendChild(messageDiv);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -1188,7 +1252,7 @@ export default function SecureRAGHome() {
     var loadingDiv = document.createElement('div');
     loadingDiv.id = 'loading-indicator';
     loadingDiv.style.cssText = 'background:white;padding:12px;border-radius:12px;margin-bottom:12px;box-shadow:0 2px 4px rgba(0,0,0,0.1);';
-    loadingDiv.innerHTML = '<strong>AI Assistant:</strong><br>🤔 Thinking...';
+    loadingDiv.innerHTML = '<strong>Your AI:</strong><br>🔍 Searching your documents...';
     messagesContainer.appendChild(loadingDiv);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
   }
@@ -1200,26 +1264,34 @@ export default function SecureRAGHome() {
     }
   }
 
-  // Send message to API
+  // Send message to API with real authentication
   async function sendMessage(question) {
     if (isLoading || !question.trim()) return;
+    
+    // Refresh token if needed
+    if (!config.userToken) {
+      config.userToken = getUserToken();
+    }
+    
+    if (!config.userToken) {
+      addMessage('Authentication required. Please log in to your main application first to access your documents.', false, true);
+      return;
+    }
     
     isLoading = true;
     addMessage(question, true);
     showLoading();
     
     try {
-      // You'll need to handle authentication here - for now using a placeholder
-      const response = await fetch(config.apiUrl + '/api/ask-public', {
+      const response = await fetch(config.apiUrl + '/api/ask-user', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // Note: In a real implementation, you'd need to handle authentication
-          // 'Authorization': 'Bearer ' + userToken
+          'Authorization': 'Bearer ' + config.userToken
         },
         body: JSON.stringify({
           question: question,
-          search_scope: 'all'
+          search_scope: 'user'
         })
       });
 
@@ -1227,27 +1299,36 @@ export default function SecureRAGHome() {
       
       if (response.ok) {
         const data = await response.json();
-        var answer = data.answer || 'Sorry, I could not find an answer to your question.';
+        var answer = data.answer || 'Sorry, I could not find an answer in your documents.';
         
-        // Format answer with sources if available
+        if (data.stats) {
+          answer += '<br><br><small><strong>📊 Search Stats:</strong><br>';
+          answer += '• Your documents searched: ' + (data.stats.documentsSearched || 0) + '<br>';
+          answer += '• Relevant results: ' + (data.stats.relevantDocuments || 0) + '</small>';
+        }
+        
         if (data.sources && data.sources.length > 0) {
-          answer += '<br><br><small><strong>Sources:</strong><br>';
+          answer += '<br><br><small><strong>📄 Sources from your documents:</strong><br>';
           data.sources.forEach(function(source, index) {
-            answer += (index + 1) + '. ' + source.text + '<br>';
+            answer += (index + 1) + '. ' + source.filename + '<br>';
+            answer += '   "' + source.text + '"<br>';
           });
           answer += '</small>';
         }
         
+        answer += '<br><br><small>🔒 Searching only YOUR documents</small>';
+        
         addMessage(answer);
       } else if (response.status === 401) {
-        addMessage('Please log in to ask questions. You need to authenticate first to access your documents.', false, true);
+        addMessage('Authentication expired. Please refresh your main application and try again.', false, true);
       } else {
         const errorData = await response.json();
         addMessage(errorData.error || 'Sorry, something went wrong. Please try again.', false, true);
       }
     } catch (error) {
       hideLoading();
-      addMessage('Connection error. Please check your internet connection and try again.', false, true);
+      console.error('API Error:', error);
+      addMessage('Connection error. Please check that your server is running on ' + config.apiUrl, false, true);
     }
     
     isLoading = false;
@@ -1255,8 +1336,7 @@ export default function SecureRAGHome() {
 
   // Event listeners
   chatButton.addEventListener('click', toggleChat);
-  
-  document.getElementById('close-chat').addEventListener('click', toggleChat);
+  closeButton.addEventListener('click', toggleChat);
   
   sendButton.addEventListener('click', function() {
     sendMessage(chatInput.value);
@@ -1289,16 +1369,7 @@ export default function SecureRAGHome() {
     this.style.background = config.primaryColor;
   });
 
-  // Auto-focus input when chat opens
-  var originalToggleChat = toggleChat;
-  toggleChat = function() {
-    originalToggleChat();
-    if (isOpen) {
-      setTimeout(function() { chatInput.focus(); }, 100);
-    }
-  };
-
-  console.log('RAG AI Agent initialized successfully!');
+  console.log('Production AI Agent initialized successfully for user:', config.userId);
 })();
       `,
       "support-agent": `

@@ -178,8 +178,11 @@
       const SUPABASE_ANON_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwcWpycmJvc2FlZGV5ZHF3aGtmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyOTA3ODQsImV4cCI6MjA3MTg2Njc4NH0.QAobgZIX8zXCQJRnxjJk9qZupZkG0VVlPedwiU894ZI";
 
-      // API URL - CHANGE THIS TO YOUR SERVER URL
-      const API_URL = "http://localhost:3001";
+      // API URL - Dynamic configuration for development and production
+      const API_URL =
+        window.location.hostname === "localhost"
+          ? "http://localhost:3001"
+          : "https://your-app.vercel.app"; // Replace with your actual Vercel URL
 
       // Initialize Supabase
       const { createClient } = supabase;
