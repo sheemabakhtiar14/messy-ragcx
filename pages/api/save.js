@@ -3,6 +3,7 @@ import { HfInference } from '@huggingface/inference'
 import formidable from 'formidable'
 import fs from 'fs'
 import path from 'path'
+import os from 'os' // Add this import
 import mammoth from 'mammoth'
 import * as XLSX from 'xlsx'
 import pdfParse from 'pdf-parse'
@@ -33,7 +34,7 @@ export default requireAuth(async function handler(req, res) {
     console.log('Processing document for user:', userId)
 
     const form = formidable({
-      uploadDir: '/tmp',
+      uploadDir: os.tmpdir(), // Use system temp directory (cross-platform)
       keepExtensions: true,
       maxFileSize: 10 * 1024 * 1024, // 10MB limit
     })
