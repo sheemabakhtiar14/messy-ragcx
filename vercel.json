@@ -1,12 +1,6 @@
 {
   "version": 2,
   "name": "rag-application-production",
-  "builds": [
-    {
-      "src": "next.config.ts",
-      "use": "@vercel/next"
-    }
-  ],
   "routes": [
     {
       "src": "/api/(.*)",
