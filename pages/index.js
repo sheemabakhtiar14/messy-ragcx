@@ -1086,10 +1086,10 @@ export default function SecureRAGHome() {
         // Client-side: Use current origin for production, or localhost for development
         return window.location.hostname === "localhost"
           ? "http://localhost:3000"
-          : window.location.origin;
+          : "https://messy-ragcx.vercel.app";
       }
       // Server-side fallback
-      return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      return "https://messy-ragcx.vercel.app";
     };
 
     // Generate production-ready scripts based on selected element

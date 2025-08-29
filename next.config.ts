@@ -50,7 +50,7 @@ const nextConfig: NextConfig = {
 
   /* Image optimization */
   images: {
-    domains: ["your-domain.com"], // Add your production domain here
+    domains: ["messy-ragcx.vercel.app"], // Updated with actual production domain
     unoptimized: false,
   },
 
