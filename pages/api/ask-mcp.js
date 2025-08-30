@@ -240,7 +240,7 @@ async function generateEmbedding(text) {
 }
 
 // Smart context assembly function
-function assembleSmartContext(searchResults, question) {
+function assembleSmartContext(searchResults, _question) {
   if (!searchResults || searchResults.length === 0) {
     return {
       context: "",

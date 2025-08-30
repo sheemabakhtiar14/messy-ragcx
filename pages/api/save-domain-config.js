@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import crypto from "crypto";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -44,7 +45,7 @@ export default async function handler(req, res) {
     }
     userId = user.id;
     userEmail = user.email;
-  } catch (authError) {
+  } catch (error) {
     return res.status(401).json({
       error: "Authentication failed",
       message: "Unable to validate authentication token",
@@ -88,7 +89,6 @@ export default async function handler(req, res) {
       }
 
       // Generate unique widget token for cross-domain authentication
-      const crypto = require("crypto");
       const widgetTokenPayload = {
         userId,
         email: userEmail,

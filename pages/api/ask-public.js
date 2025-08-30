@@ -25,7 +25,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { question, search_scope = 'all' } = req.body;
+    const { question, search_scope: _search_scope = 'all' } = req.body;
     
     if (!question || question.trim().length === 0) {
       return res.status(400).json({ error: 'Question is required' });

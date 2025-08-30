@@ -21,6 +21,12 @@
     },
     "pages/api/save.js": {
       "maxDuration": 60
+    },
+    "pages/api/save-domain-config.js": {
+      "maxDuration": 30
+    },
+    "pages/api/get-widget-token.js": {
+      "maxDuration": 30
     }
   },
   "env": {
