@@ -161,7 +161,7 @@ const StepHeader = ({ currentStep }) => {
           alignItems: "center",
         }}
       >
-        {[1, 2, 3, 4].map((step, index) => {
+        {[1, 2, 3, 4, 5].map((step, index) => {
           const isCompleted = step < currentStep;
           const isActive = step === currentStep;
 
@@ -195,7 +195,7 @@ const StepHeader = ({ currentStep }) => {
               </div>
 
               {/* Connector line */}
-              {index < 3 && (
+              {index < 4 && (
                 <div
                   style={{
                     width: "40px",
@@ -566,6 +566,268 @@ const ElementStep = ({ selectedElement, setSelectedElement }) => {
   );
 };
 
+// Domain Step Component
+const DomainStep = ({
+  allowedDomains,
+  currentDomain,
+  setCurrentDomain,
+  domainError,
+  addDomain,
+  removeDomain,
+  saveDomainConfiguration,
+  savingDomains,
+}) => {
+  return (
+    <div style={{ width: "100%" }}>
+      <h2
+        className="step-title"
+        style={{
+          fontSize: "28px",
+          fontWeight: "700",
+          textAlign: "center",
+          marginBottom: "40px",
+          color: "#111827",
+        }}
+      >
+        Configure Domain Access
+      </h2>
+
+      <div
+        style={{
+          borderRadius: "16px",
+          boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+          padding: "32px",
+          backgroundColor: "#fff",
+          maxWidth: "600px",
+          margin: "0 auto",
+        }}
+      >
+        <div style={{ marginBottom: "24px" }}>
+          <h3
+            style={{
+              fontSize: "18px",
+              fontWeight: "600",
+              marginBottom: "12px",
+              color: "#111827",
+            }}
+          >
+            Authorized Domains
+          </h3>
+          <p
+            style={{
+              fontSize: "14px",
+              color: "#6B7280",
+              marginBottom: "16px",
+              lineHeight: "1.5",
+            }}
+          >
+            Add the domains where your AI widget should be allowed to work. For
+            security, the widget will only function on these specified domains.
+          </p>
+        </div>
+
+        {/* Add Domain Input */}
+        <div style={{ marginBottom: "24px" }}>
+          <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+            <input
+              type="text"
+              value={currentDomain}
+              onChange={(e) => {
+                setCurrentDomain(e.target.value);
+                if (domainError) {
+                  setDomainError("");
+                }
+              }}
+              placeholder="Enter domain (e.g., example.com)"
+              style={{
+                flex: 1,
+                padding: "12px",
+                borderRadius: "8px",
+                border: domainError ? "2px solid #EF4444" : "1px solid #D1D5DB",
+                fontSize: "14px",
+                outline: "none",
+                transition: "border-color 0.2s ease",
+              }}
+              onKeyPress={(e) => {
+                if (e.key === "Enter") {
+                  addDomain();
+                }
+              }}
+            />
+            <button
+              onClick={addDomain}
+              style={{
+                padding: "12px 16px",
+                backgroundColor: "#A259FF",
+                color: "#fff",
+                border: "none",
+                borderRadius: "8px",
+                fontSize: "14px",
+                fontWeight: "500",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.backgroundColor = "#7C3AED")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = "#A259FF")
+              }
+            >
+              Add Domain
+            </button>
+          </div>
+
+          {domainError && (
+            <p
+              style={{
+                color: "#EF4444",
+                fontSize: "12px",
+                marginTop: "4px",
+              }}
+            >
+              {domainError}
+            </p>
+          )}
+        </div>
+
+        {/* Domain List */}
+        {allowedDomains.length > 0 && (
+          <div style={{ marginBottom: "24px" }}>
+            <h4
+              style={{
+                fontSize: "16px",
+                fontWeight: "600",
+                marginBottom: "12px",
+                color: "#111827",
+              }}
+            >
+              Authorized Domains ({allowedDomains.length})
+            </h4>
+            <div style={{ space: "8px" }}>
+              {allowedDomains.map((domain, index) => (
+                <div
+                  key={index}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "12px",
+                    backgroundColor: "#F9FAFB",
+                    borderRadius: "8px",
+                    marginBottom: "8px",
+                    border: "1px solid #E5E7EB",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: "14px",
+                      color: "#111827",
+                      fontFamily: "monospace",
+                    }}
+                  >
+                    {domain}
+                  </span>
+                  <button
+                    onClick={() => removeDomain(domain)}
+                    style={{
+                      padding: "4px 8px",
+                      backgroundColor: "#EF4444",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: "4px",
+                      fontSize: "12px",
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.backgroundColor = "#DC2626")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.backgroundColor = "#EF4444")
+                    }
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Continue Button */}
+        <div style={{ textAlign: "center", marginTop: "32px" }}>
+          <button
+            onClick={saveDomainConfiguration}
+            disabled={allowedDomains.length === 0 || savingDomains}
+            style={{
+              padding: "12px 24px",
+              backgroundColor:
+                allowedDomains.length > 0 && !savingDomains
+                  ? "#22C55E"
+                  : "#D1D5DB",
+              color: "#fff",
+              border: "none",
+              borderRadius: "8px",
+              fontSize: "16px",
+              fontWeight: "600",
+              cursor:
+                allowedDomains.length > 0 && !savingDomains
+                  ? "pointer"
+                  : "not-allowed",
+              transition: "all 0.2s ease",
+              minWidth: "150px",
+            }}
+            onMouseEnter={(e) => {
+              if (allowedDomains.length > 0 && !savingDomains) {
+                e.currentTarget.style.backgroundColor = "#16A34A";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (allowedDomains.length > 0 && !savingDomains) {
+                e.currentTarget.style.backgroundColor = "#22C55E";
+              }
+            }}
+          >
+            {savingDomains ? "Saving..." : "Continue to Script"}
+          </button>
+
+          {allowedDomains.length === 0 && (
+            <p
+              style={{
+                fontSize: "12px",
+                color: "#6B7280",
+                marginTop: "8px",
+                fontStyle: "italic",
+              }}
+            >
+              Add at least one domain to continue
+            </p>
+          )}
+        </div>
+
+        {/* Info Box */}
+        <div
+          style={{
+            marginTop: "24px",
+            padding: "16px",
+            backgroundColor: "#FEF3C7",
+            border: "1px solid #F59E0B",
+            borderRadius: "8px",
+            fontSize: "12px",
+            color: "#92400E",
+            lineHeight: "1.4",
+          }}
+        >
+          <strong>🔒 Security Note:</strong> Your AI widget will only work on
+          the domains you specify here. This prevents unauthorized use of your
+          widget on other websites. You can add localhost for testing.
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Script Step Component
 const ScriptStep = ({ selectedPlatform, selectedElement, generateScript }) => {
   const [scriptCopied, setScriptCopied] = useState(false);
@@ -747,7 +1009,7 @@ export default function SecureRAGHome() {
   const [searchScope, setSearchScope] = useState("all");
 
   // New step flow state
-  const [currentStep, setCurrentStep] = useState(0); // 0: mode selection, 1: file upload, 2: platform, 3: element, 4: script
+  const [currentStep, setCurrentStep] = useState(0); // 0: mode selection, 1: file upload, 2: platform, 3: element, 4: domain, 5: script
   const [selectedPlatform, setSelectedPlatform] = useState(null);
   const [selectedElement, setSelectedElement] = useState(null);
   const [uploadedFile, setUploadedFile] = useState(null);
@@ -755,6 +1017,12 @@ export default function SecureRAGHome() {
   const [scriptCopied, setScriptCopied] = useState(false);
   const [fileUploading, setFileUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+
+  // Domain restriction state
+  const [allowedDomains, setAllowedDomains] = useState([]);
+  const [currentDomain, setCurrentDomain] = useState("");
+  const [domainError, setDomainError] = useState("");
+  const [savingDomains, setSavingDomains] = useState(false);
 
   const fileInputRef = useRef(null);
 
@@ -1078,7 +1346,8 @@ export default function SecureRAGHome() {
   };
 
   const generateScript = () => {
-    if (!selectedPlatform || !selectedElement) return "";
+    if (!selectedPlatform || !selectedElement || allowedDomains.length === 0)
+      return "";
 
     // Get production API URL based on environment
     const getApiUrl = () => {
@@ -1119,6 +1388,23 @@ export default function SecureRAGHome() {
       `,
       "ai-agent": `
 (function() {
+  // Domain validation - SECURITY FEATURE
+  var allowedDomains = ${JSON.stringify(allowedDomains)};
+  var currentDomain = window.location.hostname;
+  
+  // Check if current domain is authorized
+  var isDomainAllowed = allowedDomains.some(function(domain) {
+    return currentDomain === domain || currentDomain.endsWith('.' + domain);
+  });
+  
+  if (!isDomainAllowed) {
+    console.warn('AI Agent Widget: This domain (' + currentDomain + ') is not authorized to use this widget.');
+    console.warn('Authorized domains:', allowedDomains);
+    return; // Exit if domain not allowed
+  }
+  
+  console.log('AI Agent Widget: Domain authorized (' + currentDomain + ')');
+
   // Production Configuration - Dynamic API URL Detection
   var config = {
     apiUrl: '${getApiUrl()}',
@@ -1127,7 +1413,9 @@ export default function SecureRAGHome() {
     textColor: '#333',
     backgroundColor: '#fff',
     userId: '${user?.id || "anonymous"}',
-    userToken: null // Will be set dynamically
+    userToken: null, // Will be set dynamically
+    allowedDomains: allowedDomains,
+    currentDomain: currentDomain
   };
 
   // Authentication helper - Get user token from Supabase
@@ -1424,7 +1712,80 @@ export default function SecureRAGHome() {
 
   const handleElementSelection = (element) => {
     setSelectedElement(element);
-    setCurrentStep(4); // Move to script generation
+    setCurrentStep(4); // Move to domain configuration
+  };
+
+  // Domain management functions
+  const addDomain = () => {
+    if (!currentDomain.trim()) {
+      setDomainError("Please enter a domain");
+      return;
+    }
+
+    // Validate domain format
+    const domainPattern = /^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}$/;
+    const domain = currentDomain.trim().toLowerCase();
+
+    // Remove protocol if included
+    const cleanDomain = domain.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+
+    if (!domainPattern.test(cleanDomain) && cleanDomain !== "localhost") {
+      setDomainError(
+        "Please enter a valid domain (e.g., example.com, subdomain.example.com)"
+      );
+      return;
+    }
+
+    if (allowedDomains.includes(cleanDomain)) {
+      setDomainError("Domain already added");
+      return;
+    }
+
+    setAllowedDomains([...allowedDomains, cleanDomain]);
+    setCurrentDomain("");
+    setDomainError("");
+  };
+
+  const removeDomain = (domainToRemove) => {
+    setAllowedDomains(
+      allowedDomains.filter((domain) => domain !== domainToRemove)
+    );
+  };
+
+  const saveDomainConfiguration = async () => {
+    if (allowedDomains.length === 0) {
+      setDomainError("Please add at least one domain");
+      return;
+    }
+
+    setSavingDomains(true);
+    try {
+      const response = await fetch("/api/save-domain-config", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          allowedDomains,
+          platform: selectedPlatform,
+          element: selectedElement,
+          organizationId:
+            workingMode === "organization" ? selectedOrganization?.id : null,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setCurrentStep(5); // Move to script generation
+      } else {
+        setDomainError(result.error || "Failed to save domain configuration");
+      }
+    } catch (error) {
+      setDomainError("Network error. Please try again.");
+    }
+    setSavingDomains(false);
   };
 
   // Loading screen
@@ -2339,6 +2700,20 @@ export default function SecureRAGHome() {
                     <ElementStep
                       selectedElement={selectedElement}
                       setSelectedElement={handleElementSelection}
+                    />
+                  </div>
+
+                  {/* Domain Configuration Step */}
+                  <div className="w-full flex-shrink-0">
+                    <DomainStep
+                      allowedDomains={allowedDomains}
+                      currentDomain={currentDomain}
+                      setCurrentDomain={setCurrentDomain}
+                      domainError={domainError}
+                      addDomain={addDomain}
+                      removeDomain={removeDomain}
+                      saveDomainConfiguration={saveDomainConfiguration}
+                      savingDomains={savingDomains}
                     />
                   </div>
 

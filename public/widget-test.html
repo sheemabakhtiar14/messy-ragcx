@@ -67,7 +67,77 @@
 
       <div class="success">
         <strong>✅ Widget Status:</strong> If you see the 🤖 button in the
-        bottom-right corner, the widget loaded successfully!
+        bottom-right corner, the widget loaded successfully! <br /><br />
+        <button
+          onclick="debugAuth()"
+          style="
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+          "
+        >
+          🔍 Debug Authentication
+        </button>
+        <button
+          onclick="openMainApp()"
+          style="
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+            margin-left: 10px;
+          "
+        >
+          🚀 Open Main App
+        </button>
+        <div
+          id="authDebug"
+          style="
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+          "
+        ></div>
+
+        <div
+          style="
+            margin-top: 15px;
+            padding: 15px;
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+          "
+        >
+          <strong>⚠️ Cross-Domain Issue:</strong> The authentication token
+          cannot be shared between the main app and this test page due to
+          browser security. <br /><br />
+          <strong>Solution:</strong>
+          <ol style="margin: 10px 0">
+            <li>
+              Open the main app in another tab:
+              <a
+                href="https://messy-ragcx.vercel.app"
+                target="_blank"
+                style="color: #0066cc"
+                >https://messy-ragcx.vercel.app</a
+              >
+            </li>
+            <li>Sign in and upload some documents</li>
+            <li>Generate the AI agent script from the main app</li>
+            <li>Test the generated script on a real external website</li>
+          </ol>
+        </div>
       </div>
 
       <h2>Sample Content</h2>
@@ -109,19 +179,64 @@
         // Authentication helper - Get user token from Supabase
         function getUserToken() {
           try {
-            // Try to get token from localStorage (Supabase stores session here)
+            console.log("Searching for authentication token...");
+
+            // Method 1: Check all localStorage keys for Supabase auth
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && key.includes("sb-") && key.includes("-auth-token")) {
+                try {
+                  const authData = JSON.parse(localStorage.getItem(key));
+                  if (authData && authData.access_token) {
+                    console.log("Found token via Supabase key:", key);
+                    return authData.access_token;
+                  }
+                } catch (e) {
+                  // Skip invalid JSON
+                }
+              }
+            }
+
+            // Method 2: Try standard supabase auth token key
             const session = JSON.parse(
               localStorage.getItem("supabase.auth.token") || "{}"
             );
             if (session && session.access_token) {
+              console.log("Found token via standard key");
               return session.access_token;
             }
 
-            // Alternative: Try to get from Supabase client if available
-            if (typeof window !== "undefined" && window.supabase) {
-              return window.supabase.auth.session()?.access_token;
+            // Method 3: Check for any auth-related keys
+            const authKeys = ["supabase-auth-token", "auth-token", "session"];
+            for (const authKey of authKeys) {
+              try {
+                const data = localStorage.getItem(authKey);
+                if (data) {
+                  const parsed = JSON.parse(data);
+                  if (parsed && parsed.access_token) {
+                    console.log("Found token via key:", authKey);
+                    return parsed.access_token;
+                  }
+                }
+              } catch (e) {
+                // Skip invalid JSON
+              }
             }
 
+            // Method 4: Try to get from Supabase client if available
+            if (typeof window !== "undefined" && window.supabase) {
+              const session = window.supabase.auth.session();
+              if (session && session.access_token) {
+                console.log("Found token via window.supabase");
+                return session.access_token;
+              }
+            }
+
+            console.warn("No authentication token found in localStorage");
+            console.log(
+              "Available localStorage keys:",
+              Object.keys(localStorage)
+            );
             return null;
           } catch (error) {
             console.warn("Failed to get user token:", error);
@@ -418,6 +533,60 @@
           "Production AI Agent initialized successfully for external site!"
         );
       })();
+
+      // Debug function to help troubleshoot authentication
+      function debugAuth() {
+        const debugDiv = document.getElementById("authDebug");
+        debugDiv.style.display = "block";
+
+        let debugInfo = "<strong>Authentication Debug Info:</strong><br><br>";
+
+        // Check localStorage
+        debugInfo += "<strong>LocalStorage Keys:</strong><br>";
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          const value = localStorage.getItem(key);
+
+          if (
+            key.includes("supabase") ||
+            key.includes("auth") ||
+            key.includes("sb-")
+          ) {
+            debugInfo += `${key}: ${value.substring(0, 100)}...<br>`;
+          }
+        }
+
+        debugInfo += "<br><strong>Current Status:</strong><br>";
+        debugInfo += `Domain: ${window.location.hostname}<br>`;
+        debugInfo += `Protocol: ${window.location.protocol}<br>`;
+        debugInfo += `Full URL: ${window.location.href}<br>`;
+
+        // Try to get token again
+        const token = getUserTokenDebug();
+        debugInfo += `<br><strong>Token Found:</strong> ${token ? "YES (" + token.substring(0, 20) + "...)" : "NO"}<br>`;
+
+        debugDiv.innerHTML = debugInfo;
+      }
+
+      function getUserTokenDebug() {
+        // Same logic as getUserToken but for debugging
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.includes("sb-") && key.includes("-auth-token")) {
+            try {
+              const authData = JSON.parse(localStorage.getItem(key));
+              if (authData && authData.access_token) {
+                return authData.access_token;
+              }
+            } catch (e) {}
+          }
+        }
+        return null;
+      }
+
+      function openMainApp() {
+        window.open("https://messy-ragcx.vercel.app", "_blank");
+      }
     </script>
 
     <script>

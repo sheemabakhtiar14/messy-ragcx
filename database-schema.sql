@@ -24,6 +24,20 @@ CREATE TABLE IF NOT EXISTS organization_memberships (
     UNIQUE(organization_id, user_id)
 );
 
+-- Widget configurations table for domain restrictions
+CREATE TABLE IF NOT EXISTS widget_configurations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL, -- References auth.users
+    organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
+    platform VARCHAR(50) NOT NULL, -- web, mobile, ar
+    element VARCHAR(50) NOT NULL, -- search, ai-agent, support-agent
+    allowed_domains JSONB NOT NULL DEFAULT '[]', -- Array of authorized domains
+    configuration_data JSONB DEFAULT '{}', -- Additional configuration options
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Documents table
 CREATE TABLE IF NOT EXISTS documents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -64,6 +78,12 @@ USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 
 CREATE INDEX IF NOT EXISTS idx_organization_memberships_user_id ON organization_memberships(user_id);
 CREATE INDEX IF NOT EXISTS idx_organization_memberships_organization_id ON organization_memberships(organization_id);
+
+-- Widget configurations indexes
+CREATE INDEX IF NOT EXISTS idx_widget_configurations_user_id ON widget_configurations(user_id);
+CREATE INDEX IF NOT EXISTS idx_widget_configurations_organization_id ON widget_configurations(organization_id);
+CREATE INDEX IF NOT EXISTS idx_widget_configurations_platform_element ON widget_configurations(platform, element);
+CREATE INDEX IF NOT EXISTS idx_widget_configurations_active ON widget_configurations(is_active);
 
 -- RPC function for semantic search
 CREATE OR REPLACE FUNCTION search_document_chunks(
@@ -205,11 +225,18 @@ CREATE TRIGGER trigger_update_documents_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_documents_updated_at();
 
+-- Update trigger for widget configurations
+CREATE TRIGGER trigger_update_widget_configurations_updated_at
+    BEFORE UPDATE ON widget_configurations
+    FOR EACH ROW
+    EXECUTE FUNCTION update_documents_updated_at();
+
 -- Row Level Security (RLS) policies
 ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE document_chunks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE organization_memberships ENABLE ROW LEVEL SECURITY;
+ALTER TABLE widget_configurations ENABLE ROW LEVEL SECURITY;
 
 -- Documents policies
 CREATE POLICY "Users can view their own documents" ON documents
@@ -253,6 +280,28 @@ CREATE POLICY "Users can update their own document chunks" ON document_chunks
     FOR UPDATE USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can delete their own document chunks" ON document_chunks
+    FOR DELETE USING (auth.uid() = user_id);
+
+-- Widget configurations policies
+CREATE POLICY "Users can view their own widget configurations" ON widget_configurations
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can view organization widget configurations they have access to" ON widget_configurations
+    FOR SELECT USING (
+        organization_id IS NOT NULL AND
+        EXISTS (
+            SELECT 1 FROM organization_memberships 
+            WHERE user_id = auth.uid() AND organization_id = widget_configurations.organization_id
+        )
+    );
+
+CREATE POLICY "Users can insert their own widget configurations" ON widget_configurations
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own widget configurations" ON widget_configurations
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own widget configurations" ON widget_configurations
     FOR DELETE USING (auth.uid() = user_id);
 
 -- Organization policies

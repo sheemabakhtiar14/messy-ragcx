@@ -4,11 +4,206 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-// Simple test to check if our Supabase connection works
+// Database setup script for widget_configurations table
 import { createClient } from "@supabase/supabase-js";
 
+async function setupWidgetConfigurationsTable() {
+  console.log(
+    "🗄️  Setting up widget_configurations table for domain restrictions...\n"
+  );
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+
+  try {
+    // First, test if the table already exists
+    console.log("📋 Checking if widget_configurations table exists...");
+    const { data: existingData, error: existingError } = await supabase
+      .from("widget_configurations")
+      .select("count(*)")
+      .limit(1);
+
+    if (!existingError) {
+      console.log("✅ widget_configurations table already exists!");
+      console.log("🎉 Domain restriction feature is ready to use!");
+      return true;
+    }
+
+    console.log("⚠️ Table doesn't exist, creating it now...");
+
+    // Create the table using a direct SQL execution approach
+    const createTableSQL = `
+      -- Widget configurations table for domain restrictions
+      CREATE TABLE IF NOT EXISTS widget_configurations (
+          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+          user_id UUID NOT NULL,
+          organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
+          platform VARCHAR(50) NOT NULL,
+          element VARCHAR(50) NOT NULL,
+          allowed_domains JSONB NOT NULL DEFAULT '[]',
+          configuration_data JSONB DEFAULT '{}',
+          is_active BOOLEAN DEFAULT TRUE,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+
+      -- Create indexes for better performance
+      CREATE INDEX IF NOT EXISTS idx_widget_configurations_user_id ON widget_configurations(user_id);
+      CREATE INDEX IF NOT EXISTS idx_widget_configurations_organization_id ON widget_configurations(organization_id);
+      CREATE INDEX IF NOT EXISTS idx_widget_configurations_platform_element ON widget_configurations(platform, element);
+      CREATE INDEX IF NOT EXISTS idx_widget_configurations_active ON widget_configurations(is_active);
+
+      -- Enable Row Level Security
+      ALTER TABLE widget_configurations ENABLE ROW LEVEL SECURITY;
+
+      -- Create security policies
+      CREATE POLICY "Users can view their own widget configurations" ON widget_configurations
+          FOR SELECT USING (auth.uid() = user_id);
+
+      CREATE POLICY "Users can insert their own widget configurations" ON widget_configurations
+          FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+      CREATE POLICY "Users can update their own widget configurations" ON widget_configurations
+          FOR UPDATE USING (auth.uid() = user_id);
+
+      CREATE POLICY "Users can delete their own widget configurations" ON widget_configurations
+          FOR DELETE USING (auth.uid() = user_id);
+
+      -- Add helpful comments
+      COMMENT ON TABLE widget_configurations IS 'Stores widget configuration including domain restrictions for security';
+      COMMENT ON COLUMN widget_configurations.allowed_domains IS 'JSONB array of authorized domains where the widget can function';
+      COMMENT ON COLUMN widget_configurations.configuration_data IS 'Additional widget settings and customization options';
+    `;
+
+    console.log("🔧 Executing table creation SQL...");
+
+    // Try to execute using RPC if available
+    try {
+      const { data, error } = await supabase.rpc("exec_sql", {
+        sql: createTableSQL,
+      });
+
+      if (error) {
+        throw new Error("RPC method not available");
+      }
+
+      console.log("✅ Table created using RPC method");
+    } catch (rpcError) {
+      console.log("🔄 RPC not available, using alternative method...");
+
+      // Alternative: Try to insert a test record to trigger table creation
+      const testConfig = {
+        user_id: "00000000-0000-0000-0000-000000000000", // dummy UUID
+        platform: "web",
+        element: "ai-agent",
+        allowed_domains: ["example.com"],
+        configuration_data: { test: true },
+        is_active: true,
+      };
+
+      // This will fail if table doesn't exist, which means we need manual setup
+      const { data: insertResult, error: insertError } = await supabase
+        .from("widget_configurations")
+        .insert(testConfig)
+        .select();
+
+      if (insertError) {
+        console.log("❌ Automatic table creation failed.");
+        console.log(
+          "📋 Please run this SQL manually in your Supabase SQL Editor:"
+        );
+        console.log("=".repeat(60));
+        console.log(createTableSQL);
+        console.log("=".repeat(60));
+        return false;
+      } else {
+        // Clean up test record
+        await supabase
+          .from("widget_configurations")
+          .delete()
+          .eq("user_id", "00000000-0000-0000-0000-000000000000");
+        console.log("✅ Table created successfully!");
+      }
+    }
+
+    // Verify the table was created
+    const { data: verifyData, error: verifyError } = await supabase
+      .from("widget_configurations")
+      .select("count(*)")
+      .limit(1);
+
+    if (verifyError) {
+      console.log("❌ Table verification failed. Please run the SQL manually.");
+      return false;
+    } else {
+      console.log("✅ widget_configurations table verified!");
+      console.log("🎉 Domain restriction feature is now ready!");
+
+      // Show table structure
+      console.log("\n📊 Table Structure Created:");
+      console.log("- id (UUID, Primary Key)");
+      console.log("- user_id (UUID, References auth.users)");
+      console.log("- organization_id (UUID, Optional)");
+      console.log("- platform (VARCHAR, e.g., 'web')");
+      console.log("- element (VARCHAR, e.g., 'ai-agent')");
+      console.log("- allowed_domains (JSONB, Array of domains)");
+      console.log("- configuration_data (JSONB, Additional settings)");
+      console.log("- is_active (BOOLEAN, Default true)");
+      console.log("- created_at (TIMESTAMP)");
+      console.log("- updated_at (TIMESTAMP)");
+
+      return true;
+    }
+  } catch (error) {
+    console.error("❌ Setup failed:", error.message);
+    console.log("\n📋 Manual Setup Required:");
+    console.log("1. Open your Supabase Dashboard");
+    console.log("2. Go to SQL Editor");
+    console.log("3. Run this SQL:");
+    console.log("-".repeat(50));
+    console.log(`
+CREATE TABLE IF NOT EXISTS widget_configurations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL,
+    organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
+    platform VARCHAR(50) NOT NULL,
+    element VARCHAR(50) NOT NULL,
+    allowed_domains JSONB NOT NULL DEFAULT '[]',
+    configuration_data JSONB DEFAULT '{}',
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_widget_configurations_user_id ON widget_configurations(user_id);
+CREATE INDEX IF NOT EXISTS idx_widget_configurations_organization_id ON widget_configurations(organization_id);
+CREATE INDEX IF NOT EXISTS idx_widget_configurations_platform_element ON widget_configurations(platform, element);
+
+-- Enable RLS
+ALTER TABLE widget_configurations ENABLE ROW LEVEL SECURITY;
+
+-- Policies
+CREATE POLICY "Users can view their own widget configurations" ON widget_configurations
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own widget configurations" ON widget_configurations
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own widget configurations" ON widget_configurations
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own widget configurations" ON widget_configurations
+    FOR DELETE USING (auth.uid() = user_id);`);
+    console.log("-".repeat(50));
+    return false;
+  }
+}
+
 async function testSupabaseConnection() {
-  console.log("🧪 Testing Direct Supabase Connection...\n");
+  console.log("🧪 Testing Supabase Connection...\n");
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -141,6 +336,10 @@ async function main() {
     );
     process.exit(1);
   }
+
+  // Set up widget_configurations table
+  console.log("\n" + "=".repeat(50));
+  await setupWidgetConfigurationsTable();
 
   // Test Supabase
   const supabaseWorking = await testSupabaseConnection();

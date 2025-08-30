@@ -69,8 +69,48 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { question, organization_id, search_scope = "user" } = req.body;
+    const {
+      question,
+      organization_id,
+      search_scope = "user",
+      requestDomain,
+    } = req.body;
     // userId is already set from authentication above
+
+    // DOMAIN VALIDATION: Check if request is from authorized domain
+    if (requestDomain) {
+      console.log(`Domain validation - Request from: ${requestDomain}`);
+
+      // Get user's widget configurations to check allowed domains
+      const { data: configs, error: configError } = await supabase
+        .from("widget_configurations")
+        .select("allowed_domains")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (configError) {
+        console.error("Error fetching widget config:", configError);
+      } else if (configs && configs.length > 0) {
+        const allowedDomains = configs[0].allowed_domains || [];
+        const isDomainAllowed = allowedDomains.some(
+          (domain) =>
+            requestDomain === domain || requestDomain.endsWith("." + domain)
+        );
+
+        if (!isDomainAllowed) {
+          console.warn(
+            `Unauthorized domain access attempt: ${requestDomain} by user ${userId}`
+          );
+          return res.status(403).json({
+            error: "Domain not authorized",
+            message: `This domain (${requestDomain}) is not authorized to use this AI agent. Please contact the administrator.`,
+          });
+        }
+
+        console.log(`Domain authorized: ${requestDomain}`);
+      }
+    }
 
     console.log(
       "SECURE User-specific Ask - Question from authenticated user:",
