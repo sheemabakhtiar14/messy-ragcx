@@ -1367,6 +1367,18 @@ export default function SecureRAGHome() {
       return "https://messy-ragcx.vercel.app";
     };
 
+    // Helper function to safely escape JavaScript strings in templates
+    const escapeJsString = (str) => {
+      if (typeof str !== "string") return String(str);
+      return str
+        .replace(/\\/g, "\\\\")
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, "\\n")
+        .replace(/\r/g, "\\r")
+        .replace(/\t/g, "\\t");
+    };
+
     // Generate production-ready scripts based on selected element
     const scripts = {
       search: `
@@ -1395,7 +1407,14 @@ export default function SecureRAGHome() {
       "ai-agent": `
 (function() {
   // Domain validation - SECURITY FEATURE
-  var allowedDomains = ${JSON.stringify(allowedDomains)};
+  var configData = JSON.parse('${JSON.stringify({
+    allowedDomains: allowedDomains,
+    apiUrl: getApiUrl(),
+    userId: user?.id || "anonymous",
+    configId: domainConfig.configId,
+  }).replace(/'/g, "\\'")}');
+  
+  var allowedDomains = configData.allowedDomains;
   var currentDomain = window.location.hostname;
   
   // Check if current domain is authorized
@@ -1413,16 +1432,16 @@ export default function SecureRAGHome() {
 
   // Production Configuration - Dynamic API URL Detection
   var config = {
-    apiUrl: '${getApiUrl()}',
+    apiUrl: configData.apiUrl,
     primaryColor: '#A259FF',
     hoverColor: '#7C3AED',
     textColor: '#333',
     backgroundColor: '#fff',
-    userId: '${user?.id || "anonymous"}',
+    userId: configData.userId,
     userToken: null, // Will be set dynamically
     allowedDomains: allowedDomains,
     currentDomain: currentDomain,
-    configId: '${domainConfig.configId}' // NEW: Configuration ID for token retrieval
+    configId: configData.configId // NEW: Configuration ID for token retrieval
   };
 
   // Authentication helper - Cross-domain persistent token system
@@ -1626,7 +1645,7 @@ export default function SecureRAGHome() {
     var textColor = isUser ? 'white' : (isError ? 'white' : config.textColor);
     
     messageDiv.style.cssText = 'background:' + bgColor + ';color:' + textColor + ';padding:12px;border-radius:12px;margin-bottom:12px;box-shadow:0 2px 4px rgba(0,0,0,0.1);word-wrap:break-word;';
-    messageDiv.innerHTML = (isUser ? '<strong>You:</strong><br>' : (isError ? '<strong>Error:</strong><br>' : '<strong>Your AI:</strong><br>')) + content;
+    messageDiv.innerHTML = (isUser ? '<strong>You:</strong><br>' : (isError ? '<strong>Error:</strong><br>' : '<strong>Your AI:</strong><br>')) + content.replace(/'/g, '&#39;').replace(/"/g, '&quot;');
     
     messagesContainer.appendChild(messageDiv);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
