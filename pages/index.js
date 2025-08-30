@@ -1023,6 +1023,7 @@ export default function SecureRAGHome() {
   const [currentDomain, setCurrentDomain] = useState("");
   const [domainError, setDomainError] = useState("");
   const [savingDomains, setSavingDomains] = useState(false);
+  const [domainConfig, setDomainConfig] = useState(null); // NEW: Store domain config response
 
   const fileInputRef = useRef(null);
 
@@ -1346,7 +1347,12 @@ export default function SecureRAGHome() {
   };
 
   const generateScript = () => {
-    if (!selectedPlatform || !selectedElement || allowedDomains.length === 0)
+    if (
+      !selectedPlatform ||
+      !selectedElement ||
+      allowedDomains.length === 0 ||
+      !domainConfig
+    )
       return "";
 
     // Get production API URL based on environment
@@ -1415,23 +1421,114 @@ export default function SecureRAGHome() {
     userId: '${user?.id || "anonymous"}',
     userToken: null, // Will be set dynamically
     allowedDomains: allowedDomains,
-    currentDomain: currentDomain
+    currentDomain: currentDomain,
+    configId: '${domainConfig.configId}' // NEW: Configuration ID for token retrieval
   };
 
-  // Authentication helper - Get user token from Supabase
-  function getUserToken() {
+  // Authentication helper - Cross-domain persistent token system
+  async function getUserToken() {
     try {
-      // Try to get token from localStorage (Supabase stores session here)
-      const session = JSON.parse(localStorage.getItem('supabase.auth.token') || '{}');
-      if (session && session.access_token) {
-        return session.access_token;
+      console.log('🔍 Getting cross-domain authentication token...');
+      
+      // NEW METHOD: Get persistent widget token from database via config ID
+      try {
+        console.log('🔄 Retrieving persistent widget token from server...');
+        const response = await fetch(config.apiUrl + '/api/get-widget-token?configId=' + config.configId + '&domain=' + encodeURIComponent(currentDomain));
+        
+        if (response.ok) {
+          const data = await response.json();
+          const widgetToken = data.widget_token;
+          
+          // Store token in localStorage as backup (domain-specific)
+          localStorage.setItem('widget_auth_token_' + config.configId, widgetToken);
+          console.log('✅ Successfully retrieved persistent widget token');
+          console.log('🔒 Widget token is SAFE - contains no Supabase secrets');
+          console.log('🌐 Cross-domain authentication ACTIVE');
+          return widgetToken;
+        } else {
+          console.warn('❌ Failed to retrieve persistent widget token:', response.status);
+          const errorData = await response.json();
+          console.warn('Error details:', errorData);
+        }
+      } catch (persistentTokenError) {
+        console.warn('Persistent token retrieval error:', persistentTokenError.message);
       }
       
-      // Alternative: Try to get from Supabase client if available
-      if (typeof window !== 'undefined' && window.supabase) {
-        return window.supabase.auth.session()?.access_token;
+      // FALLBACK METHOD 1: Check localStorage for cached token
+      const cachedToken = localStorage.getItem('widget_auth_token_' + config.configId);
+      if (cachedToken) {
+        console.log('📦 Using cached widget token');
+        return cachedToken;
       }
       
+      // FALLBACK METHOD 2: Try traditional token exchange (same-domain only)
+      const existingWidgetToken = localStorage.getItem('widget_auth_token');
+      if (existingWidgetToken) {
+        // Validate if token is not expired (basic check)
+        try {
+          const [payloadBase64] = existingWidgetToken.split('.');
+          const payload = JSON.parse(Buffer.from ? Buffer.from(payloadBase64, 'base64').toString() : atob(payloadBase64));
+          if (payload.exp && Date.now() < payload.exp) {
+            console.log('✅ Using existing widget token');
+            return existingWidgetToken;
+          } else {
+            localStorage.removeItem('widget_auth_token');
+          }
+        } catch (e) {
+          localStorage.removeItem('widget_auth_token');
+        }
+      }
+      
+      // FALLBACK METHOD 3: Supabase token exchange (same-domain only)
+      let supabaseToken = null;
+      
+      // Try different localStorage patterns for Supabase token
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('sb-') || key.includes('supabase')) && (key.includes('auth-token') || key.includes('session'))) {
+          try {
+            const authData = JSON.parse(localStorage.getItem(key));
+            if (authData && authData.access_token) {
+              console.log('✅ Found Supabase token via key:', key.substring(0, 20) + '...');
+              supabaseToken = authData.access_token;
+              break;
+            }
+          } catch (e) {
+            // Skip invalid JSON
+          }
+        }
+      }
+      
+      // If we have a Supabase token, exchange it for a secure widget token
+      if (supabaseToken) {
+        try {
+          console.log('🔄 Exchanging Supabase token for secure widget token...');
+          const response = await fetch(config.apiUrl + '/api/auth/widget-token', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + supabaseToken
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            const widgetToken = data.widget_token;
+            
+            // Store the SAFE widget token (contains no Supabase secrets)
+            localStorage.setItem('widget_auth_token', widgetToken);
+            console.log('✅ Successfully obtained secure widget token');
+            return widgetToken;
+          } else {
+            console.warn('❌ Token exchange failed:', response.status);
+          }
+        } catch (e) {
+          console.warn('Token exchange error:', e.message);
+        }
+      }
+      
+      console.warn('❌ No authentication token found');
+      console.log('🔗 Cross-domain solution: Visit your main app to authenticate, then return to this site');
       return null;
     } catch (error) {
       console.warn('Failed to get user token:', error);
@@ -1556,13 +1653,49 @@ export default function SecureRAGHome() {
   async function sendMessage(question) {
     if (isLoading || !question.trim()) return;
     
-    // Refresh token if needed
+    // Enhanced token refresh - try multiple times with secure token exchange
     if (!config.userToken) {
-      config.userToken = getUserToken();
+      console.log('🔄 Refreshing authentication token...');
+      config.userToken = await getUserToken();
+      
+      // If still no token, try alternative authentication methods
+      if (!config.userToken) {
+        // Try to get fresh session from main app
+        try {
+          const response = await fetch(config.apiUrl + '/api/auth/session', {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            const sessionData = await response.json();
+            if (sessionData.access_token) {
+              console.log('✅ Retrieved fresh token from main app');
+              config.userToken = sessionData.access_token;
+            }
+          }
+        } catch (e) {
+          console.warn('Could not retrieve fresh session:', e.message);
+        }
+      }
     }
     
     if (!config.userToken) {
-      addMessage('Authentication required. Please log in to your main application first to access your documents.', false, true);
+      addMessage(
+        'Cross-domain authentication required. Here\'s how to fix this:<br><br>' +
+        '<strong>🌐 Cross-Domain Setup (Recommended):</strong><br>' +
+        '1. This widget can now authenticate across domains automatically<br>' +
+        '2. Just make sure you\'re logged in to <a href="' + config.apiUrl + '" target="_blank" style="color: #A259FF; text-decoration: underline;">your main app</a><br>' +
+        '3. The widget will retrieve your secure authentication token<br><br>' +
+        '<strong>📱 Quick Fix:</strong><br>' +
+        'Open <a href="' + config.apiUrl + '" target="_blank" style="color: #A259FF; text-decoration: underline;">your main app</a> → Sign in → Return here<br><br>' +
+        '<small>🔒 This widget only accesses YOUR documents securely, even across different websites.</small>',
+        false,
+        true
+      );
       return;
     }
     
@@ -1579,7 +1712,8 @@ export default function SecureRAGHome() {
         },
         body: JSON.stringify({
           question: question,
-          search_scope: 'user'
+          search_scope: 'user',
+          requestDomain: config.currentDomain
         })
       });
 
@@ -1607,8 +1741,22 @@ export default function SecureRAGHome() {
         answer += '<br><br><small>🔒 Searching only YOUR documents</small>';
         
         addMessage(answer);
+        console.log('✅ Successfully retrieved user-specific response');
       } else if (response.status === 401) {
-        addMessage('Authentication expired. Please refresh your main application and try again.', false, true);
+        // Token expired or invalid - clear it and ask user to re-authenticate
+        config.userToken = null;
+        addMessage(
+          'Your session has expired. Please refresh this page and log in again to continue accessing your documents.',
+          false,
+          true
+        );
+      } else if (response.status === 403) {
+        const errorData = await response.json();
+        addMessage(
+          'Access denied: ' + (errorData.message || 'This domain is not authorized to use this AI agent.'),
+          false,
+          true
+        );
       } else {
         const errorData = await response.json();
         addMessage(errorData.error || 'Sorry, something went wrong. Please try again.', false, true);
@@ -1616,7 +1764,12 @@ export default function SecureRAGHome() {
     } catch (error) {
       hideLoading();
       console.error('API Error:', error);
-      addMessage('Connection error. Please check that your server is running on ' + config.apiUrl, false, true);
+      addMessage(
+        'Connection error. Please check your internet connection and try again.<br><br>' +
+        '<small>If the problem persists, ensure you\'re logged in to <a href="' + config.apiUrl + '" target="_blank" style="color: #A259FF;">your main app</a>.</small>',
+        false,
+        true
+      );
     }
     
     isLoading = false;
@@ -1778,6 +1931,7 @@ export default function SecureRAGHome() {
       const result = await response.json();
 
       if (response.ok) {
+        setDomainConfig(result); // NEW: Store configuration data including widget token
         setCurrentStep(5); // Move to script generation
       } else {
         setDomainError(result.error || "Failed to save domain configuration");

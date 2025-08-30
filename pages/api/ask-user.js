@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { HfInference } from "@huggingface/inference";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import crypto from "crypto";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -11,6 +12,35 @@ const hf = new HfInference(process.env.HUGGINGFACE_API_KEY);
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+// Widget token secret (must match widget-token.js)
+const WIDGET_SECRET =
+  process.env.WIDGET_SECRET || "your-secure-widget-secret-2024-change-this";
+
+// Function to validate widget token
+function validateWidgetToken(token) {
+  try {
+    const [payloadBase64, signature] = token.split(".");
+    if (!payloadBase64 || !signature) return null;
+
+    const payloadString = Buffer.from(payloadBase64, "base64").toString();
+    const expectedSignature = crypto
+      .createHmac("sha256", WIDGET_SECRET)
+      .update(payloadString)
+      .digest("hex");
+
+    if (signature !== expectedSignature) return null;
+
+    const payload = JSON.parse(payloadString);
+
+    // Check expiration
+    if (Date.now() > payload.exp) return null;
+
+    return payload;
+  } catch {
+    return null;
+  }
+}
 
 // User-specific authenticated endpoint
 export default async function handler(req, res) {
@@ -39,29 +69,53 @@ export default async function handler(req, res) {
 
   const token = authHeader.split(" ")[1];
 
-  // PRODUCTION: Real Supabase authentication validation
-  let userId, userEmail;
-  try {
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token);
-    if (error || !user) {
-      console.error("Authentication failed:", error);
+  // SECURE DUAL AUTHENTICATION: Support both Supabase and Widget tokens
+  let userId, userEmail, authMethod;
+
+  // Try widget token first (for external domains - SAFE)
+  const widgetPayload = validateWidgetToken(token);
+  if (
+    widgetPayload &&
+    (widgetPayload.type === "widget" ||
+      widgetPayload.type === "persistent_widget")
+  ) {
+    userId = widgetPayload.userId;
+    userEmail = widgetPayload.email;
+    authMethod =
+      widgetPayload.type === "persistent_widget"
+        ? "persistent_widget_token"
+        : "widget_token";
+    console.log(
+      "🔐 Authenticated via SECURE widget token:",
+      userId,
+      userEmail,
+      `(${authMethod})`
+    );
+  } else {
+    // Fallback to Supabase token (for main app - server-side only)
+    try {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser(token);
+      if (error || !user) {
+        console.error("Authentication failed:", error);
+        return res.status(401).json({
+          error: "Invalid authentication token",
+          message: "Please log in again to access your documents",
+        });
+      }
+      userId = user.id;
+      userEmail = user.email;
+      authMethod = "supabase_token";
+      console.log("🔐 Authenticated via Supabase token:", userId, userEmail);
+    } catch (authError) {
+      console.error("Authentication error:", authError);
       return res.status(401).json({
-        error: "Invalid authentication token",
-        message: "Please log in again to access your documents",
+        error: "Authentication failed",
+        message: "Unable to validate your authentication token",
       });
     }
-    userId = user.id;
-    userEmail = user.email;
-    console.log("Authenticated user:", userId, userEmail);
-  } catch (authError) {
-    console.error("Authentication error:", authError);
-    return res.status(401).json({
-      error: "Authentication failed",
-      message: "Unable to validate your authentication token",
-    });
   }
 
   if (req.method !== "POST") {

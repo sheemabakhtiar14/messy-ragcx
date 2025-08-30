@@ -87,19 +87,45 @@ export default async function handler(req, res) {
         });
       }
 
-      // Save widget configuration
+      // Generate unique widget token for cross-domain authentication
+      const crypto = require("crypto");
+      const widgetTokenPayload = {
+        userId,
+        email: userEmail,
+        type: "persistent_widget",
+        configId: crypto.randomUUID(), // Temporary ID, will be replaced with actual
+        domains: allowedDomains,
+        iat: Date.now(),
+        exp: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year expiry
+      };
+
+      const payloadString = JSON.stringify(widgetTokenPayload);
+      const WIDGET_SECRET =
+        process.env.WIDGET_SECRET ||
+        "secure-widget-secret-2024-production-change-this-key";
+      const signature = crypto
+        .createHmac("sha256", WIDGET_SECRET)
+        .update(payloadString)
+        .digest("hex");
+
+      const persistentWidgetToken =
+        Buffer.from(payloadString).toString("base64") + "." + signature;
+
+      // Save widget configuration with persistent token
       const configData = {
         user_id: userId,
         organization_id: organizationId || null,
         platform: platform,
         element: element,
         allowed_domains: allowedDomains,
+        widget_token: persistentWidgetToken, // NEW: Store persistent token
         configuration_data: {
           allowedDomains,
           platform,
           element,
           createdAt: new Date().toISOString(),
           createdBy: userEmail,
+          tokenCreated: new Date().toISOString(),
         },
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -126,8 +152,10 @@ export default async function handler(req, res) {
       return res.status(200).json({
         success: true,
         configId: data.id,
+        widgetToken: persistentWidgetToken, // NEW: Return persistent token
         message: "Widget configuration saved successfully",
         allowedDomains: allowedDomains,
+        crossDomainReady: true, // Indicates cross-domain support
       });
     } catch (error) {
       console.error("Error saving widget configuration:", error);

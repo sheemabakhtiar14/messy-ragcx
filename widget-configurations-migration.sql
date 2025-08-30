@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS widget_configurations (
     platform VARCHAR(50) NOT NULL, -- web, mobile, ar
     element VARCHAR(50) NOT NULL, -- search, ai-agent, support-agent
     allowed_domains JSONB NOT NULL DEFAULT '[]', -- Array of authorized domains
+    widget_token TEXT, -- NEW: Persistent widget token for cross-domain auth
     configuration_data JSONB DEFAULT '{}', -- Additional configuration options
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -20,6 +21,7 @@ CREATE INDEX IF NOT EXISTS idx_widget_configurations_user_id ON widget_configura
 CREATE INDEX IF NOT EXISTS idx_widget_configurations_organization_id ON widget_configurations(organization_id);
 CREATE INDEX IF NOT EXISTS idx_widget_configurations_platform_element ON widget_configurations(platform, element);
 CREATE INDEX IF NOT EXISTS idx_widget_configurations_active ON widget_configurations(is_active);
+CREATE INDEX IF NOT EXISTS idx_widget_configurations_widget_token ON widget_configurations(widget_token); -- NEW: Index for token lookups
 
 -- Update trigger for widget configurations
 CREATE TRIGGER trigger_update_widget_configurations_updated_at
@@ -55,6 +57,7 @@ CREATE POLICY "Users can delete their own widget configurations" ON widget_confi
 -- Comment with usage examples
 COMMENT ON TABLE widget_configurations IS 'Stores widget configuration including domain restrictions for security';
 COMMENT ON COLUMN widget_configurations.allowed_domains IS 'JSONB array of authorized domains where the widget can function';
+COMMENT ON COLUMN widget_configurations.widget_token IS 'Persistent widget authentication token for cross-domain usage';
 COMMENT ON COLUMN widget_configurations.configuration_data IS 'Additional widget settings and customization options';
 
 -- Example insert (for reference):
