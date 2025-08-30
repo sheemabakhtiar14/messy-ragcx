@@ -1704,10 +1704,10 @@ export default function SecureRAGHome() {
     
     if (!config.userToken) {
       addMessage(
-        'Cross-domain authentication required. Here\'s how to fix this:<br><br>' +
+        'Cross-domain authentication required. Here\\'s how to fix this:<br><br>' +
         '<strong>🌐 Cross-Domain Setup (Recommended):</strong><br>' +
         '1. This widget can now authenticate across domains automatically<br>' +
-        '2. Just make sure you\'re logged in to <a href="' + config.apiUrl + '" target="_blank" style="color: #A259FF; text-decoration: underline;">your main app</a><br>' +
+        '2. Just make sure you\\'re logged in to <a href="' + config.apiUrl + '" target="_blank" style="color: #A259FF; text-decoration: underline;">your main app</a><br>' +
         '3. The widget will retrieve your secure authentication token<br><br>' +
         '<strong>📱 Quick Fix:</strong><br>' +
         'Open <a href="' + config.apiUrl + '" target="_blank" style="color: #A259FF; text-decoration: underline;">your main app</a> → Sign in → Return here<br><br>' +
@@ -1785,7 +1785,7 @@ export default function SecureRAGHome() {
       console.error('API Error:', error);
       addMessage(
         'Connection error. Please check your internet connection and try again.<br><br>' +
-        '<small>If the problem persists, ensure you\'re logged in to <a href="' + config.apiUrl + '" target="_blank" style="color: #A259FF;">your main app</a>.</small>',
+        '<small>If the problem persists, ensure you\\'re logged in to <a href="' + config.apiUrl + '" target="_blank" style="color: #A259FF;">your main app</a>.</small>',
         false,
         true
       );
