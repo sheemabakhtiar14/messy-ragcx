@@ -15,7 +15,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Widget token secret (must match widget-token.js)
 const WIDGET_SECRET =
-  process.env.WIDGET_SECRET || "your-secure-widget-secret-2024-change-this";
+  process.env.WIDGET_SECRET || "secure-widget-secret-2024-production-change-this-key";
 
 // Function to validate widget token
 function validateWidgetToken(token) {

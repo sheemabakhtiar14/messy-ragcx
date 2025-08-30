@@ -8,7 +8,7 @@ const supabase = createClient(
 
 // Custom secret for widget tokens (completely separate from Supabase)
 const WIDGET_SECRET =
-  process.env.WIDGET_SECRET || "your-secure-widget-secret-2024-change-this";
+  process.env.WIDGET_SECRET || "secure-widget-secret-2024-production-change-this-key";
 
 // Function to create secure widget token using Node.js crypto
 function createWidgetToken(userId, email) {
