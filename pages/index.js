@@ -1555,8 +1555,10 @@ export default function SecureRAGHome() {
     }
   }
 
-  // Initialize authentication token
-  config.userToken = getUserToken();
+  // FIXED: Don't assign Promise directly
+  // config.userToken = getUserToken(); // ❌ WRONG - assigns Promise 
+  // FIXED: Initialize as null and get token when needed 
+  config.userToken = null; // ✅ CORRECT - initialize as null
 
   // Create AI Agent Container
   var aiContainer = document.createElement('div');
@@ -1672,7 +1674,7 @@ export default function SecureRAGHome() {
   async function sendMessage(question) {
     if (isLoading || !question.trim()) return;
     
-    // Enhanced token refresh - try multiple times with secure token exchange
+    // FIXED: Get token if not available
     if (!config.userToken) {
       console.log('🔄 Refreshing authentication token...');
       config.userToken = await getUserToken();
@@ -1959,6 +1961,40 @@ export default function SecureRAGHome() {
       setDomainError("Network error. Please try again.");
     }
     setSavingDomains(false);
+  };
+
+  // NEW FUNCTION: Add domain to existing configuration
+  const addDomainToConfiguration = async (configId, newDomain) => {
+    try {
+      const response = await fetch("/api/update-domain-config", {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          configId,
+          newDomain,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        return {
+          success: true,
+          message: result.message,
+          allowedDomains: result.allowedDomains,
+        };
+      } else {
+        return {
+          success: false,
+          error: result.error || "Failed to add domain",
+        };
+      }
+    } catch (error) {
+      return { success: false, error: "Network error. Please try again." };
+    }
   };
 
   // Loading screen
