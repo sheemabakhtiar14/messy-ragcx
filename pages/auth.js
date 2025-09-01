@@ -12,14 +12,16 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "your-supabase-anon-key"
 );
 
-function PasswordInput({ placeholder }) {
+function PasswordInput({ placeholder, name = "password" }) {
   const [show, setShow] = useState(false);
 
   return (
     <div style={{ position: "relative", width: "100%" }}>
       <input
+        name={name}
         type={show ? "text" : "password"}
         placeholder={placeholder}
+        required
         style={{
           width: "100%",
           padding: "12px 48px 12px 16px",
@@ -58,12 +60,26 @@ function PasswordInput({ placeholder }) {
 export default function AuthPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
     window.addEventListener("resize", checkMobile);
     setMounted(true);
+    
+    // Check if user is already authenticated
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        // User is already logged in, redirect to main app
+        window.location.href = "/";
+      }
+    };
+    checkAuth();
+    
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
@@ -81,9 +97,80 @@ export default function AuthPage() {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    window.location.href = "/";
+    setLoading(true);
+    setError("");
+    
+    const formData = new FormData(e.target);
+    const email = formData.get("email");
+    const password = formData.get("password");
+    const fullName = formData.get("fullName"); // Only for signup
+    
+    if (!email || !password) {
+      setError("Please fill in all required fields");
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      if (isSignUp) {
+        // Sign up new user
+        const { data, error } = await supabase.auth.signUp({
+          email: email.toLowerCase().trim(),
+          password,
+          options: {
+            data: {
+              full_name: fullName || ""
+            }
+          }
+        });
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (data.user && !data.user.email_confirmed_at) {
+          // User created but needs email verification
+          window.location.href = "/";
+        } else if (data.session) {
+          // User created and logged in
+          window.location.href = "/";
+        }
+      } else {
+        // Sign in existing user
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email.toLowerCase().trim(),
+          password
+        });
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (data.session) {
+          // Successfully signed in
+          window.location.href = "/";
+        }
+      }
+    } catch (error) {
+      console.error("Authentication error:", error);
+      
+      // Handle specific error cases
+      if (error.message.includes("Invalid login credentials")) {
+        setError("Invalid email or password. Please try again.");
+      } else if (error.message.includes("Email not confirmed")) {
+        setError("Please check your email and click the verification link before signing in.");
+      } else if (error.message.includes("User already registered")) {
+        setError("An account with this email already exists. Please sign in instead.");
+      } else if (error.message.includes("Password should be at least 6 characters")) {
+        setError("Password must be at least 6 characters long.");
+      } else {
+        setError(error.message || "An error occurred. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -134,8 +221,25 @@ export default function AuthPage() {
               marginBottom: "24px",
             }}
           >
-            Welcome Back
+            {isSignUp ? "Create Account" : "Welcome Back"}
           </h2>
+
+          {error && (
+            <div
+              style={{
+                marginBottom: "16px",
+                padding: "12px",
+                borderRadius: "8px",
+                backgroundColor: "#FEF2F2",
+                border: "1px solid #FECACA",
+                color: "#991B1B",
+                fontSize: "14px",
+                textAlign: "center",
+              }}
+            >
+              {error}
+            </div>
+          )}
 
           <form
             onSubmit={handleSubmit}
@@ -147,6 +251,25 @@ export default function AuthPage() {
               margin: "0 auto",
             }}
           >
+            {isSignUp && (
+              <input
+                name="fullName"
+                type="text"
+                placeholder="Full Name (optional)"
+                style={{
+                  width: "100%",
+                  padding: "12px 16px",
+                  borderRadius: "12px",
+                  border: "1px solid #D1D5DB",
+                  outline: "none",
+                  color: "#1F2937",
+                  backgroundColor: "#F9FAFB",
+                  boxSizing: "border-box",
+                  fontSize: "16px",
+                }}
+              />
+            )}
+            
             <input
               name="email"
               type="email"
@@ -164,28 +287,35 @@ export default function AuthPage() {
                 fontSize: "16px",
               }}
             />
-            <PasswordInput placeholder="Password" />
+            <PasswordInput placeholder="Password" name="password" />
 
             <button
               type="submit"
+              disabled={loading}
               style={{
                 width: "100%",
                 padding: "12px",
                 borderRadius: "12px",
-                backgroundColor: "#000",
+                backgroundColor: loading ? "#9CA3AF" : "#000",
                 color: "#fff",
                 fontWeight: "600",
                 boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
                 transition: "all 0.2s ease",
                 border: "none",
-                cursor: "pointer",
+                cursor: loading ? "not-allowed" : "pointer",
               }}
-              onMouseOver={(e) =>
-                (e.currentTarget.style.backgroundColor = "#1F2937")
-              }
-              onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#000")}
+              onMouseOver={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.backgroundColor = "#1F2937";
+                }
+              }}
+              onMouseOut={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.backgroundColor = "#000";
+                }
+              }}
             >
-              Login
+              {loading ? "Processing..." : isSignUp ? "Create Account" : "Login"}
             </button>
 
             {/* Divider */}
@@ -238,10 +368,13 @@ export default function AuthPage() {
               marginTop: "16px",
             }}
           >
-            Don&apos;t have an account?{" "}
+            {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
             <button
               type="button"
-              onClick={() => (window.location.href = "/signup")}
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setError("");
+              }}
               style={{
                 fontWeight: "600",
                 color: "#000",
@@ -251,7 +384,7 @@ export default function AuthPage() {
                 textDecoration: "underline",
               }}
             >
-              Sign Up
+              {isSignUp ? "Sign In" : "Sign Up"}
             </button>
           </p>
         </motion.div>
@@ -317,7 +450,7 @@ export default function AuthPage() {
                 marginBottom: "16px",
               }}
             >
-              Build Intelligent{" "}
+              {isSignUp ? "Join the Future of " : "Build Intelligent "}
               <span
                 style={{
                   background: "linear-gradient(to right, #A78BFA, #60A5FA)",
@@ -329,8 +462,10 @@ export default function AuthPage() {
               </span>
             </h2>
             <p style={{ fontSize: "18px", color: "#D1D5DB" }}>
-              RAG.CX is a fast, seamless widget generator for building intuitive
-              knowledge retrieval products.
+              {isSignUp 
+                ? "Create your account and start building intelligent knowledge retrieval widgets today."
+                : "RAG.CX is a fast, seamless widget generator for building intuitive knowledge retrieval products."
+              }
             </p>
 
             <div
