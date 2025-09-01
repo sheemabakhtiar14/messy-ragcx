@@ -1997,6 +1997,13 @@ export default function SecureRAGHome() {
     }
   };
 
+  // Handle authentication redirects with proper hook usage (at component top level)
+  useEffect(() => {
+    if (!user && !authLoading) {
+      window.location.href = "/auth";
+    }
+  }, [user, authLoading]);
+
   // Loading screen
   if (authLoading) {
     return (
@@ -2014,39 +2021,25 @@ export default function SecureRAGHome() {
     );
   }
 
-  // Authentication screen
+  // Redirect screen (will show briefly before redirect happens)
   if (!user) {
     return (
       <div
         style={{
-          padding: "20px",
-          maxWidth: "400px",
-          margin: "100px auto",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
           fontFamily: "system-ui, -apple-system, sans-serif",
-          textAlign: "center",
         }}
       >
-        <h1 style={{ marginBottom: "30px" }}>Enhanced RAG System</h1>
-        <p style={{ marginBottom: "30px", color: "#666" }}>
-          Please sign in to upload documents and ask questions
-        </p>
-        <button
-          onClick={signInWithGoogle}
-          style={{
-            padding: "12px 30px",
-            backgroundColor: "#4285f4",
-            color: "white",
-            border: "none",
-            borderRadius: "6px",
-            fontSize: "16px",
-            cursor: "pointer",
-          }}
-        >
-          Sign in with Google
-        </button>
+        <div>Redirecting to authentication page...</div>
       </div>
     );
   }
+
+  // The old authentication screen has been removed
+  // We now redirect to the new auth page with enhanced features
 
   // Main application - new step-based flow
   return (
