@@ -63,6 +63,8 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -132,7 +134,10 @@ export default function AuthPage() {
         
         if (data.user && !data.user.email_confirmed_at) {
           // User created but needs email verification
-          window.location.href = "/";
+          setEmailSent(true);
+          setUserEmail(email);
+          setError("");
+          // Don't redirect yet, show confirmation message
         } else if (data.session) {
           // User created and logged in
           window.location.href = "/";
@@ -140,7 +145,9 @@ export default function AuthPage() {
       } else {
         // Sign in existing user
         const { data, error } = await supabase.auth.signInWithPassword({
+
           email: email.toLowerCase().trim(),
+
           password
         });
         
@@ -241,16 +248,121 @@ export default function AuthPage() {
             </div>
           )}
 
-          <form
-            onSubmit={handleSubmit}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "16px",
-              width: "100%",
-              margin: "0 auto",
-            }}
-          >
+          {emailSent && (
+            <div
+              style={{
+                marginBottom: "24px",
+                padding: "20px",
+                borderRadius: "12px",
+                backgroundColor: "#ECFDF5",
+                border: "1px solid #BBF7D0",
+                textAlign: "center",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "24px",
+                  marginBottom: "12px",
+                }}
+              >
+                📧
+              </div>
+              <h3
+                style={{
+                  margin: "0 0 8px 0",
+                  color: "#065F46",
+                  fontSize: "18px",
+                  fontWeight: "600",
+                }}
+              >
+                Check Your Email!
+              </h3>
+              <p
+                style={{
+                  margin: "0 0 16px 0",
+                  color: "#059669",
+                  fontSize: "14px",
+                  lineHeight: "1.5",
+                }}
+              >
+                We've sent a verification email to{" "}
+                <strong>{userEmail}</strong>
+                <br />
+                Please check your inbox and click the verification link to activate your account.
+              </p>
+              <div
+                style={{
+                  padding: "12px",
+                  backgroundColor: "#F0FDF4",
+                  borderRadius: "8px",
+                  border: "1px solid #BBF7D0",
+                  fontSize: "12px",
+                  color: "#065F46",
+                }}
+              >
+                📌 <strong>Don't see the email?</strong> Check your spam folder or{" "}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const { error } = await supabase.auth.resend({
+                        type: 'signup',
+                        email: userEmail
+                      });
+                      if (!error) {
+                        alert("Verification email resent!");
+                      }
+                    } catch (err) {
+                      console.error("Resend error:", err);
+                    }
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#059669",
+                    textDecoration: "underline",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                    fontWeight: "600",
+                  }}
+                >
+                  click here to resend
+                </button>
+              </div>
+              
+              <button
+                onClick={() => window.location.href = "/"}
+                style={{
+                  marginTop: "16px",
+                  padding: "10px 20px",
+                  backgroundColor: "#059669",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "8px",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#047857"}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#059669"}
+              >
+                Continue to App
+              </button>
+            </div>
+          )}
+
+          {!emailSent && (
+            <form
+              onSubmit={handleSubmit}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "16px",
+                width: "100%",
+                margin: "0 auto",
+              }}
+            >
             {isSignUp && (
               <input
                 name="fullName"
@@ -360,33 +472,38 @@ export default function AuthPage() {
               <FcGoogle size={22} /> Continue with Google
             </button>
           </form>
+          )}
 
-          <p
-            style={{
-              textAlign: "center",
-              color: "#4B5563",
-              marginTop: "16px",
-            }}
-          >
-            {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
-            <button
-              type="button"
-              onClick={() => {
-                setIsSignUp(!isSignUp);
-                setError("");
-              }}
+          {!emailSent && (
+            <p
               style={{
-                fontWeight: "600",
-                color: "#000",
-                background: "transparent",
-                border: "none",
-                cursor: "pointer",
-                textDecoration: "underline",
+                textAlign: "center",
+                color: "#4B5563",
+                marginTop: "16px",
               }}
             >
-              {isSignUp ? "Sign In" : "Sign Up"}
-            </button>
-          </p>
+              {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSignUp(!isSignUp);
+                  setError("");
+                  setEmailSent(false);
+                  setUserEmail("");
+                }}
+                style={{
+                  fontWeight: "600",
+                  color: "#000",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                }}
+              >
+                {isSignUp ? "Sign In" : "Sign Up"}
+              </button>
+            </p>
+          )}
         </motion.div>
       </div>
 
