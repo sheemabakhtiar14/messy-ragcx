@@ -215,6 +215,147 @@ const StepHeader = ({ currentStep }) => {
   );
 };
 
+// Email Verification Step Component
+const EmailVerificationStep = ({ user, resendVerificationEmail, verificationLoading }) => {
+  const [emailSent, setEmailSent] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
+
+  const handleResendEmail = async () => {
+    const success = await resendVerificationEmail();
+    if (success) {
+      setEmailSent(true);
+      setCountdown(60); // 60 second cooldown
+    }
+  };
+
+  return (
+    <div style={{ width: "100%", maxWidth: "600px", margin: "0 auto" }}>
+      <h2
+        style={{
+          fontSize: "28px",
+          fontWeight: "700",
+          textAlign: "center",
+          marginBottom: "24px",
+          color: "#111827",
+        }}
+      >
+        📧 Verify Your Email
+      </h2>
+
+      <div
+        style={{
+          backgroundColor: "#FEF3C7",
+          border: "1px solid #F59E0B",
+          borderRadius: "12px",
+          padding: "24px",
+          marginBottom: "24px",
+          textAlign: "center",
+        }}
+      >
+        <p
+          style={{
+            fontSize: "16px",
+            color: "#92400E",
+            marginBottom: "16px",
+            lineHeight: "1.6",
+          }}
+        >
+          We've sent a verification email to{" "}
+          <strong>{user?.email}</strong>
+        </p>
+        
+        <p
+          style={{
+            fontSize: "14px",
+            color: "#92400E",
+            marginBottom: "20px",
+          }}
+        >
+          Please check your email and click the verification link to continue.
+        </p>
+
+        <button
+          onClick={handleResendEmail}
+          disabled={verificationLoading || countdown > 0}
+          style={{
+            backgroundColor: countdown > 0 ? "#D1D5DB" : "#A259FF",
+            color: "#fff",
+            padding: "12px 24px",
+            borderRadius: "8px",
+            border: "none",
+            fontSize: "16px",
+            fontWeight: "600",
+            cursor: countdown > 0 ? "not-allowed" : "pointer",
+            transition: "all 0.2s ease",
+            marginBottom: "16px",
+          }}
+          onMouseEnter={(e) => {
+            if (countdown === 0 && !verificationLoading) {
+              e.currentTarget.style.backgroundColor = "#7C3AED";
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (countdown === 0 && !verificationLoading) {
+              e.currentTarget.style.backgroundColor = "#A259FF";
+            }
+          }}
+        >
+          {verificationLoading
+            ? "Sending..."
+            : countdown > 0
+            ? `Resend in ${countdown}s`
+            : "Resend Verification Email"}
+        </button>
+
+        {emailSent && (
+          <div
+            style={{
+              marginTop: "16px",
+              padding: "12px",
+              backgroundColor: "#ECFDF5",
+              border: "1px solid #BBF7D0",
+              borderRadius: "8px",
+              color: "#065F46",
+              fontSize: "14px",
+            }}
+          >
+            ✅ Verification email sent! Please check your inbox and spam folder.
+          </div>
+        )}
+      </div>
+
+      <div
+        style={{
+          backgroundColor: "#F3F4F6",
+          border: "1px solid #E5E7EB",
+          borderRadius: "12px",
+          padding: "20px",
+          fontSize: "14px",
+          color: "#374151",
+          lineHeight: "1.5",
+        }}
+      >
+        <h4 style={{ margin: "0 0 12px 0", fontWeight: "600" }}>
+          📋 What to do next:
+        </h4>
+        <ol style={{ margin: "0", paddingLeft: "20px" }}>
+          <li>Check your email inbox for a message from RAG.CX</li>
+          <li>Look in your spam/junk folder if you don't see it</li>
+          <li>Click the verification link in the email</li>
+          <li>Return to this page to continue</li>
+        </ol>
+      </div>
+    </div>
+  );
+};
+
 // File Upload Step Component
 const FileUploadStep = ({
   isDragging,
@@ -1025,6 +1166,9 @@ export default function SecureRAGHome() {
   const [savingDomains, setSavingDomains] = useState(false);
   const [domainConfig, setDomainConfig] = useState(null); // NEW: Store domain config response
 
+  // Email verification state
+  const [verificationLoading, setVerificationLoading] = useState(false);
+
   const fileInputRef = useRef(null);
 
   // Authentication effect
@@ -1044,6 +1188,66 @@ export default function SecureRAGHome() {
     });
 
     return () => subscription.unsubscribe();
+  }, []);
+
+  // Email verification check effect
+  useEffect(() => {
+    if (user && !user.email_confirmed_at) {
+      // User is logged in but email not verified
+      setCurrentStep(-1); // Special step for email verification
+    }
+  }, [user]);
+
+  // Check email verification status periodically
+  useEffect(() => {
+    if (currentStep === -1 && user) {
+      const checkVerification = async () => {
+        try {
+          const { data: { user: refreshedUser } } = await supabase.auth.getUser();
+          if (refreshedUser && refreshedUser.email_confirmed_at) {
+            // Email is now verified, proceed to main flow
+            setCurrentStep(0);
+          }
+        } catch (error) {
+          console.error('Error checking email verification:', error);
+        }
+      };
+
+      // Check immediately and then every 5 seconds
+      checkVerification();
+      const interval = setInterval(checkVerification, 5000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [currentStep, user]);
+
+  // Handle email verification from URL parameters (when user clicks verification link)
+  useEffect(() => {
+    const handleEmailVerification = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get('token');
+      const type = urlParams.get('type');
+      
+      if (token && type) {
+        try {
+          const { data, error } = await supabase.auth.verifyOtp({
+            token_hash: token,
+            type: type
+          });
+          
+          if (!error && data.user) {
+            // Email verified successfully
+            setCurrentStep(0);
+            // Clean up URL parameters
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        } catch (error) {
+          console.error('Error verifying email from URL:', error);
+        }
+      }
+    };
+    
+    handleEmailVerification();
   }, []);
 
   // Load organizations when user is authenticated
@@ -1086,6 +1290,41 @@ export default function SecureRAGHome() {
       setWorkingMode("personal");
     } catch (error) {
       alert("Error signing out: " + error.message);
+    }
+  };
+
+  // Email verification function
+  const resendVerificationEmail = async () => {
+    if (!user?.email) {
+      alert("No user email found");
+      return false;
+    }
+
+    setVerificationLoading(true);
+    try {
+      const response = await fetch("/api/auth/verify-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: user.email,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        return true;
+      } else {
+        alert("Error: " + result.message);
+        return false;
+      }
+    } catch (error) {
+      alert("Failed to send verification email: " + error.message);
+      return false;
+    } finally {
+      setVerificationLoading(false);
     }
   };
 
@@ -2004,6 +2243,17 @@ export default function SecureRAGHome() {
     }
   }, [user, authLoading]);
 
+  // Auto-send verification email on first load if needed
+  useEffect(() => {
+    if (user && !user.email_confirmed_at && currentStep === -1) {
+      // Auto-send verification email when user first sees verification screen
+      const autoSendVerification = async () => {
+        await resendVerificationEmail();
+      };
+      autoSendVerification();
+    }
+  }, [user, currentStep]);
+
   // Loading screen
   if (authLoading) {
     return (
@@ -2833,6 +3083,14 @@ export default function SecureRAGHome() {
           )}
 
           {/* Step Flow with Header */}
+          {currentStep === -1 && (
+            <EmailVerificationStep
+              user={user}
+              resendVerificationEmail={resendVerificationEmail}
+              verificationLoading={verificationLoading}
+            />
+          )}
+
           {currentStep > 0 && (
             <>
               <StepHeader currentStep={currentStep} />
@@ -2925,8 +3183,6 @@ export default function SecureRAGHome() {
                       selectedPlatform={selectedPlatform}
                       selectedElement={selectedElement}
                       generateScript={generateScript}
-                      copyScript={copyScript}
-                      scriptCopied={scriptCopied}
                     />
                   </div>
                 </div>
